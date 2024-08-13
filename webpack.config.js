@@ -1,44 +1,33 @@
 const path = require("path");
-const { CleanWebpackPlugin } = require("clean-webpack-plugin");
-const TerserPlugin = require("terser-webpack-plugin");
-var PACKAGE = require("./package.json");
 
 module.exports = {
-    entry: path.resolve(__dirname, "./src/client.js"),
-    devtool: "inline-source-map",
-    output: {
-        path: path.resolve(__dirname, "./dist"),
-        filename: `client-${PACKAGE.version}.web.min.js`,
-    },
+    mode: "production",
+    entry: "./src/iostack_client.ts",
     module: {
         rules: [
             {
-                test: /\.js$/,
+                test: /\.ts$/,
+                use: "ts-loader",
                 exclude: /node_modules/,
-                use: {
-                    loader: "babel-loader",
-                    options: {
-                        presets: ["@babel/preset-env"],
-                    },
-                },
             },
         ],
     },
-    plugins: [
-        new CleanWebpackPlugin()
-    ],
-    optimization: {
-        minimize: false,
-        minimizer: [
-            new TerserPlugin(
-              {
-                terserOptions: {
-                    format: {
-                        preamble: `/* Copyright ${new Date().getUTCFullYear()}, iostack.ai, ${PACKAGE.name} ${PACKAGE.version} (${new Date().toUTCString()}) */`,
-                    }
-                },
-              }
-            )
-        ],
-    }
+    resolve: {
+        extensions: [".ts", ".js"],
+    },
+    output: {
+        filename: "index.js",
+        path: path.resolve(__dirname, "dist"),
+        libraryTarget: "umd", // UMD is a good choice for browser compatibility
+        globalObject: "this", // Ensure `window` or `global` is used correctly
+        library: "iostackClient", // This is the name of your library when used in the browser
+    },
+    externals: {
+        "jwt-decode": {
+            commonjs: "jwt-decode",
+            commonjs2: "jwt-decode",
+            amd: "jwt-decode",
+            root: "jwt_decode", // Global variable name for browsers
+        },
+    },
 };
