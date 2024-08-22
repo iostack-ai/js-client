@@ -49,7 +49,6 @@ export class iostackClient {
     private use_case_data: Record<string, any>;
     private session_id: string | null;
     private metadata: any | null;
-    private trigger_prompt: string;
     private decoder: TextDecoder;
     private allow_browser_to_manage_tokens: boolean;
 
@@ -87,7 +86,6 @@ export class iostackClient {
         this.allow_browser_to_manage_tokens = allow_browser_to_manage_tokens
         this.session_id = null;
         this.metadata = null;
-        this.trigger_prompt = "";
         this.streamFragmentHandlers = []
         this.llmStatsHandlers = []
         this.errorHandlers = []
@@ -147,7 +145,7 @@ export class iostackClient {
         await this.establishSession();
         await this.retrieveAccessToken();
         await this.retrieveUseCaseMetaData();
-        await this.sendMessageAndStreamResponse(this.trigger_prompt)
+        await this.sendMessageAndStreamResponse(this.metadata.trigger_prompt)
     }
 
     public async sendMessageAndStreamResponse(message: string): Promise<void> {
@@ -339,7 +337,7 @@ export class iostackClient {
                 method: 'POST',
                 headers: headers,
                 body: JSON.stringify({
-                    return_cookie: this.allow_browser_to_manage_tokens
+                    include_http_only_cookie: this.allow_browser_to_manage_tokens
                 }),
                 credentials: 'include',
             }
@@ -386,7 +384,6 @@ export class iostackClient {
         const body = await response.json();
 
         this.metadata = body.use_case
-        this.trigger_prompt = body.use_case.trigger_phrase;
 
     }
 
