@@ -1,6 +1,6 @@
 
 import { 
-  iostackClient, 
+  IOStackClient, 
   LLMStatsPacket, 
   StreamFragmentPacket, 
   UseCaseNotificationPacket 
@@ -15,7 +15,7 @@ import {
 
 test("iostack Client executes", async () => {
 
-  const client = new iostackClient( {
+  const client = new IOStackClient( {
     access_key: process.env.USE_CASE_ACCESS_KEY || "",
     use_case_data: {
       textval: "a",
