@@ -3,8 +3,8 @@ import { jwtDecode } from 'jwt-decode';
 type Closure = {
     refresh_token: string
     access_token: string
-    access_key: string
-    access_token_refresh_time: Date
+    access_key: string|null
+    access_token_refresh_time: Date|null
 }
 
 interface ClientNotificationPacket {
@@ -13,6 +13,7 @@ interface ClientNotificationPacket {
 
 export interface StreamFragmentPacket extends ClientNotificationPacket {
     fragment: string;
+    final: boolean;
 }
 
 export interface EntityReferencePacket extends ClientNotificationPacket {
@@ -29,7 +30,20 @@ export interface LLMStatsPacket extends ClientNotificationPacket {
 
 export interface UseCaseNotificationPacket extends ClientNotificationPacket {
     name: string;
-    data: Record<string, any>
+}
+
+export interface SessionStateUpdateNotificationPacket extends UseCaseNotificationPacket {
+    data: Record<string, any>;
+}
+
+export interface UseCaseActiveNodeChangePayload {
+    active_node: string
+    active_node_code: string
+    assembly?: Record<string, any>|undefined
+}
+
+export interface UseCaseActiveNodeChangeNotification extends ClientNotificationPacket {
+    data: UseCaseActiveNodeChangePayload
 }
 
 export interface StreamingErrorPacket extends ClientNotificationPacket {
@@ -41,10 +55,11 @@ type StreamFragmentHandler = (fragment: StreamFragmentPacket) => Promise<void>
 type LLMStatsHandler = (stats: LLMStatsPacket) => Promise<void>
 type ErrorHandler = (error: string) => Promise<void>
 type UseCaseNoficationHandler = (notification: UseCaseNotificationPacket) => Promise<void>
+type UseCaseActiveNodeChangeNoficationHandler = (notification: UseCaseActiveNodeChangeNotification) => Promise<void>
 
-export class iostackClient {
+export class IOStackClient {
 
-    private platform_root: string;
+    protected platform_root: string;
     private use_case: string | null;
     private use_case_data: Record<string, any>;
     private session_id: string | null;
@@ -56,15 +71,16 @@ export class iostackClient {
     private llmStatsHandlers: LLMStatsHandler[];
     private errorHandlers: ErrorHandler[];
     private useCaseNotificationHandlers: UseCaseNoficationHandler[];
+    private useCaseActiveNodeChangeNotificationHandlers: UseCaseActiveNodeChangeNoficationHandler[];
 
     private setRefreshToken: (i: string) => void;
     private getRefreshToken: () => string;
     private setAccessToken: (i: string) => void;
     private getAccessToken: () => string;
-    private getAccessKey: () => string;
+    private getAccessKey: () => string|null;
 
     private setAccessTokenRefreshTime: (i: Date) => void;
-    private getAccessTokenRefreshTime: () => Date;
+    protected accessTokenExpired: () => boolean;
 
     constructor({
         access_key,
@@ -73,7 +89,7 @@ export class iostackClient {
         use_case,
         platform_root,
     } : {
-        access_key: string,
+        access_key: string|null,
         use_case_data: Record<string, any>,
         allow_browser_to_manage_tokens: boolean,
         use_case?: string | undefined,
@@ -90,6 +106,7 @@ export class iostackClient {
         this.llmStatsHandlers = []
         this.errorHandlers = []
         this.useCaseNotificationHandlers = []
+        this.useCaseActiveNodeChangeNotificationHandlers = []
 
         this.decoder = new TextDecoder();
 
@@ -121,8 +138,16 @@ export class iostackClient {
         this.getAccessKey = function () { return closure.access_key }
 
         this.setAccessTokenRefreshTime = function (i: Date) { closure.access_token_refresh_time = i }
-        this.getAccessTokenRefreshTime = function (): Date { return closure.access_token_refresh_time }
+        this.accessTokenExpired = function (): boolean { return !!closure.access_token_refresh_time && new Date(Date.now()) >= closure.access_token_refresh_time }
 
+    }
+
+    public deregisterAllHandlers(): void {
+        this.streamFragmentHandlers = []
+        this.llmStatsHandlers = []
+        this.errorHandlers = []
+        this.useCaseNotificationHandlers = []
+        this.useCaseActiveNodeChangeNotificationHandlers = []
     }
 
     public registerStreamFragmentHandler(h: StreamFragmentHandler): void {
@@ -141,25 +166,53 @@ export class iostackClient {
         this.useCaseNotificationHandlers.push(h)
     }
 
+    public registerUseCaseActiveNodeChangeNotificationHandler(h: UseCaseActiveNodeChangeNoficationHandler): void {
+        this.useCaseActiveNodeChangeNotificationHandlers.push(h)
+    }
+
+    public getTriggerPrompt(): string {
+        if(!this.metadata) {
+            this.reportErrorString("Can't retrieve trigger prompt", "Metadata has not been retrieved yet")
+        }
+        return this.metadata.trigger_phrase
+    }
+
     public async startSession() {
         await this.establishSession();
         await this.retrieveAccessToken();
         await this.retrieveUseCaseMetaData();
-        await this.sendMessageAndStreamResponse(this.metadata.trigger_prompt)
+        await this.sendMessageAndStreamResponse(this.metadata.trigger_phrase)
     }
 
-    public async sendMessageAndStreamResponse(message: string): Promise<void> {
-
-        if (new Date(Date.now()) >= this.getAccessTokenRefreshTime()) {
-            await this.refreshAccessToken();
-        }
+    protected getHeaders(): Headers {
 
         const headers = new Headers();
+        
         headers.append('Content-Type', 'application/json');
 
         if (!this.allow_browser_to_manage_tokens) {
             headers.set('Authorization', 'Bearer ' + this.getAccessToken());
         }
+
+        return headers
+    }
+
+    public async sendMessageAndStreamResponse(message: string): Promise<void> {
+
+        if(!message) {
+            return
+        }
+
+        if(!this.session_id) {
+            this.reportErrorString("Error sending message", "Session has not yet been established")
+            return
+        }
+
+        if (this.accessTokenExpired()) {
+            await this.refreshAccessToken();
+        }
+
+        const headers = this.getHeaders();
 
         const postBody = {
             message: message,
@@ -174,6 +227,7 @@ export class iostackClient {
                 credentials: !this.allow_browser_to_manage_tokens ? 'omit' : 'include',
             });
 
+            
             if (!response.ok || !response.body) {
                 await this.reportError(response);
                 return;
@@ -249,6 +303,7 @@ export class iostackClient {
 
         switch (result.name) {
             case 'graph_active_node_change':
+                await this.handleActiveNodeChange(result as unknown as UseCaseActiveNodeChangeNotification)
                 break;
 
             default:
@@ -258,19 +313,22 @@ export class iostackClient {
 
     private async establishSession() {
 
-        // console.log('Establishing session');
+        console.log("Establishing session")
 
         const headers = new Headers();
         headers.append('Content-Type', 'application/json');
-        headers.set('Authorization', 'Bearer ' + this.getAccessKey());
+
+        if(this.getAccessKey()) {
+            headers.set('Authorization', 'Bearer ' + this.getAccessKey());
+        }
 
         const postBody = {
-            tenant_id: "",
-            user_id: "",
+            use_case_id: this.getAccessKey() ? undefined : this.use_case,
             client_data: this.use_case_data,
         };
 
-        const url = this.platform_root + '/v1/use_case/session'
+        const url = this.platform_root + `/v1/use_case/${this.getAccessKey() ? 'session' : 'public_session'}`
+
         const response = await fetch(
             url,
             {
@@ -293,8 +351,13 @@ export class iostackClient {
     }
 
     private async retrieveAccessToken() {
+        
+        console.log(`Retrieving access token for session ${this.session_id}`);
 
-        console.log('Retrieving access token');
+        if(!this.session_id) {
+            this.reportErrorString("Error retrieving access token", "Session has not yet been established")
+            return
+        }
 
         const headers = new Headers();
         headers.append('Content-Type', 'application/json');
@@ -319,13 +382,20 @@ export class iostackClient {
 
         const body = await response.json();
 
-        this.setAccessToken(body.access_token)
+        if(!this.allow_browser_to_manage_tokens) {
+            this.setAccessToken(body.access_token)
+        }
         this.calcAndSaveAccessTokenRefreshTime(body.access_token);
     }
 
-    private async refreshAccessToken() {
+    protected async refreshAccessToken() {
 
-        console.log('Refreshing access token');
+        console.log(`Refreshing access token for session ${this.session_id}`);
+
+        if(!this.session_id) {
+            this.reportErrorString("Error refreshing access token", "Session has not yet been established")
+            return
+        }
 
         const headers = new Headers();
         headers.append('Content-Type', 'application/json');
@@ -350,7 +420,9 @@ export class iostackClient {
 
         const body = await response.json();
 
-        this.setAccessToken(body.access_token);
+        if(!this.allow_browser_to_manage_tokens) {
+            this.setAccessToken(body.access_token)
+        }
         this.calcAndSaveAccessTokenRefreshTime(body.access_token);
 
     }
@@ -359,16 +431,11 @@ export class iostackClient {
 
         console.log('Fetching use case metadata');
 
-        if (new Date(Date.now()) >= this.getAccessTokenRefreshTime()) {
+        if (this.accessTokenExpired()) {
             await this.refreshAccessToken();
         }
 
-        const headers = new Headers();
-        headers.append('Content-Type', 'application/json');
-
-        if (!this.allow_browser_to_manage_tokens) {
-            headers.set('Authorization', 'Bearer ' + this.getAccessToken());
-        }
+        const headers = this.getHeaders();
 
         const response = await fetch(this.platform_root + '/v1/use_case/meta', {
             method: 'GET',
@@ -425,16 +492,22 @@ export class iostackClient {
         })
     }
 
-    private async reportError(response: Response): Promise<never> {
+    private async handleActiveNodeChange(notification: UseCaseActiveNodeChangeNotification) {
+        this.useCaseActiveNodeChangeNotificationHandlers.forEach(async h => {
+            await h(notification)
+        })
+    }
+
+    protected async reportError(response: Response): Promise<void> {
         const error = await response.json();
         const errorText = `${response.statusText}:${error.message || error.detail}`;
         this.handleError(errorText)
-        throw new Error(errorText);
+        // throw new Error(errorText);
     }
 
-    private async reportErrorString(error: string, message: string): Promise<never> {
+    protected async reportErrorString(error: string, message: string): Promise<void> {
         this.handleError(`${error} - ${message}`)
-        throw new Error(`${error} - ${message}`);
+        // throw new Error(`${error} - ${message}`);
     }
 
 
