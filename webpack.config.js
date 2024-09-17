@@ -18,9 +18,9 @@ module.exports = {
     output: {
         filename: "index.js",
         path: path.resolve(__dirname, "dist"),
-        libraryTarget: "umd", // UMD is a good choice for browser compatibility
-        globalObject: "this", // Ensure `window` or `global` is used correctly
-        library: "iostackClient", // This is the name of your library when used in the browser
+        libraryTarget: "umd",
+        globalObject: "this",
+        library: "iostackClient",
     },
     externals: {
         "jwt-decode": {
@@ -30,4 +30,7 @@ module.exports = {
             root: "jwt_decode", // Global variable name for browsers
         },
     },
+    optimization: {
+        minimize: false
+    }    
 };
