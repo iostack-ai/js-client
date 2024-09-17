@@ -3,7 +3,7 @@ import { jwtDecode } from 'jwt-decode';
 type Closure = {
     refresh_token: string
     access_token: string
-    access_key: string
+    access_key: string|null
     access_token_refresh_time: Date|null
 }
 
@@ -33,9 +33,7 @@ export interface UseCaseNotificationPacket extends ClientNotificationPacket {
 }
 
 export interface SessionStateUpdateNotificationPacket extends UseCaseNotificationPacket {
-    data: {
-        data: Record<string, any>;
-    }
+    data: Record<string, any>;
 }
 
 export interface UseCaseActiveNodeChangePayload {
@@ -45,11 +43,8 @@ export interface UseCaseActiveNodeChangePayload {
 }
 
 export interface UseCaseActiveNodeChangeNotification extends ClientNotificationPacket {
-    data: {
-        data: UseCaseActiveNodeChangePayload
-    }
+    data: UseCaseActiveNodeChangePayload
 }
-
 
 export interface StreamingErrorPacket extends ClientNotificationPacket {
     error: string;
@@ -64,7 +59,7 @@ type UseCaseActiveNodeChangeNoficationHandler = (notification: UseCaseActiveNode
 
 export class IOStackClient {
 
-    private platform_root: string;
+    protected platform_root: string;
     private use_case: string | null;
     private use_case_data: Record<string, any>;
     private session_id: string | null;
@@ -82,10 +77,10 @@ export class IOStackClient {
     private getRefreshToken: () => string;
     private setAccessToken: (i: string) => void;
     private getAccessToken: () => string;
-    private getAccessKey: () => string;
+    private getAccessKey: () => string|null;
 
     private setAccessTokenRefreshTime: (i: Date) => void;
-    private accessTokenExpired: () => boolean;
+    protected accessTokenExpired: () => boolean;
 
     constructor({
         access_key,
@@ -94,7 +89,7 @@ export class IOStackClient {
         use_case,
         platform_root,
     } : {
-        access_key: string,
+        access_key: string|null,
         use_case_data: Record<string, any>,
         allow_browser_to_manage_tokens: boolean,
         use_case?: string | undefined,
@@ -175,11 +170,31 @@ export class IOStackClient {
         this.useCaseActiveNodeChangeNotificationHandlers.push(h)
     }
 
+    public getTriggerPrompt(): string {
+        if(!this.metadata) {
+            this.reportErrorString("Can't retrieve trigger prompt", "Metadata has not been retrieved yet")
+        }
+        return this.metadata.trigger_phrase
+    }
+
     public async startSession() {
         await this.establishSession();
         await this.retrieveAccessToken();
         await this.retrieveUseCaseMetaData();
         await this.sendMessageAndStreamResponse(this.metadata.trigger_phrase)
+    }
+
+    protected getHeaders(): Headers {
+
+        const headers = new Headers();
+        
+        headers.append('Content-Type', 'application/json');
+
+        if (!this.allow_browser_to_manage_tokens) {
+            headers.set('Authorization', 'Bearer ' + this.getAccessToken());
+        }
+
+        return headers
     }
 
     public async sendMessageAndStreamResponse(message: string): Promise<void> {
@@ -189,7 +204,7 @@ export class IOStackClient {
         }
 
         if(!this.session_id) {
-            console.error("Session has not been established yet")
+            this.reportErrorString("Error sending message", "Session has not yet been established")
             return
         }
 
@@ -197,12 +212,7 @@ export class IOStackClient {
             await this.refreshAccessToken();
         }
 
-        const headers = new Headers();
-        headers.append('Content-Type', 'application/json');
-
-        if (!this.allow_browser_to_manage_tokens) {
-            headers.set('Authorization', 'Bearer ' + this.getAccessToken());
-        }
+        const headers = this.getHeaders();
 
         const postBody = {
             message: message,
@@ -307,15 +317,18 @@ export class IOStackClient {
 
         const headers = new Headers();
         headers.append('Content-Type', 'application/json');
-        headers.set('Authorization', 'Bearer ' + this.getAccessKey());
+
+        if(this.getAccessKey()) {
+            headers.set('Authorization', 'Bearer ' + this.getAccessKey());
+        }
 
         const postBody = {
-            tenant_id: "",
-            user_id: "",
+            use_case_id: this.getAccessKey() ? undefined : this.use_case,
             client_data: this.use_case_data,
         };
 
-        const url = this.platform_root + '/v1/use_case/session'
+        const url = this.platform_root + `/v1/use_case/${this.getAccessKey() ? 'session' : 'public_session'}`
+
         const response = await fetch(
             url,
             {
@@ -342,7 +355,7 @@ export class IOStackClient {
         console.log(`Retrieving access token for session ${this.session_id}`);
 
         if(!this.session_id) {
-            console.error("Session has not been established yet")
+            this.reportErrorString("Error retrieving access token", "Session has not yet been established")
             return
         }
 
@@ -375,12 +388,12 @@ export class IOStackClient {
         this.calcAndSaveAccessTokenRefreshTime(body.access_token);
     }
 
-    private async refreshAccessToken() {
+    protected async refreshAccessToken() {
 
         console.log(`Refreshing access token for session ${this.session_id}`);
 
         if(!this.session_id) {
-            console.error("Session has not been established yet")
+            this.reportErrorString("Error refreshing access token", "Session has not yet been established")
             return
         }
 
@@ -422,12 +435,7 @@ export class IOStackClient {
             await this.refreshAccessToken();
         }
 
-        const headers = new Headers();
-        headers.append('Content-Type', 'application/json');
-
-        if (!this.allow_browser_to_manage_tokens) {
-            headers.set('Authorization', 'Bearer ' + this.getAccessToken());
-        }
+        const headers = this.getHeaders();
 
         const response = await fetch(this.platform_root + '/v1/use_case/meta', {
             method: 'GET',
@@ -490,14 +498,14 @@ export class IOStackClient {
         })
     }
 
-    private async reportError(response: Response): Promise<void> {
+    protected async reportError(response: Response): Promise<void> {
         const error = await response.json();
         const errorText = `${response.statusText}:${error.message || error.detail}`;
         this.handleError(errorText)
         // throw new Error(errorText);
     }
 
-    private async reportErrorString(error: string, message: string): Promise<void> {
+    protected async reportErrorString(error: string, message: string): Promise<void> {
         this.handleError(`${error} - ${message}`)
         // throw new Error(`${error} - ${message}`);
     }
