@@ -178,10 +178,14 @@ export class IOStackClient {
     }
 
     public async startSession() {
-        await this.establishSession();
-        await this.retrieveAccessToken();
-        await this.retrieveUseCaseMetaData();
-        await this.sendMessageAndStreamResponse(this.metadata.trigger_phrase)
+        try {
+            await this.establishSession();
+            await this.retrieveAccessToken();
+            await this.retrieveUseCaseMetaData();
+            await this.sendMessageAndStreamResponse(this.metadata.trigger_phrase)
+        } finally {
+            // All errors and exceptions should have been reported via the callback
+        }
     }
 
     protected getHeaders(): Headers {
@@ -329,24 +333,34 @@ export class IOStackClient {
 
         const url = this.platform_root + `/v1/use_case/${this.getAccessKey() ? 'session' : 'public_session'}`
 
-        const response = await fetch(
-            url,
-            {
-                method: 'POST',
-                headers: headers,
-                body: JSON.stringify(postBody),
-                credentials: 'include',
+        try {
+            const response = await fetch(
+                url,
+                {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(postBody),
+                    credentials: 'include',
+                }
+            )
+
+            if (!response.ok) {
+                await this.reportError(response)
+                return
             }
-        )
 
-        if (!response.ok) {
-            await this.reportError(response)
-            return
+            const body = await response.json();
+            this.setRefreshToken(body.refresh_token);
+            this.session_id = body.session_id;
+
+        } catch(e:any) {
+            this.reportErrorString(
+                'Error while establishing response',
+                e.toString()
+            );
+            throw e
+        } finally {
         }
-
-        const body = await response.json();
-        this.setRefreshToken(body.refresh_token);
-        this.session_id = body.session_id;
 
     }
 
@@ -363,29 +377,40 @@ export class IOStackClient {
         headers.append('Content-Type', 'application/json');
         headers.set('Authorization', 'Bearer ' + this.getRefreshToken());
 
-        const response = await fetch(
-            this.platform_root + `/v1/use_case/session/${this.session_id}/access_token`,
-            {
-                method: 'POST',
-                headers: headers,
-                body: JSON.stringify({
-                    include_http_only_cookie: this.allow_browser_to_manage_tokens
-                }),
-                credentials: 'include',
+        try {
+            const response = await fetch(
+                this.platform_root + `/v1/use_case/session/${this.session_id}/access_token`,
+                {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        include_http_only_cookie: this.allow_browser_to_manage_tokens
+                    }),
+                    credentials: 'include',
+                }
+            )
+
+            if (!response.ok) {
+                await this.reportError(response)
+                return
             }
-        )
 
-        if (!response.ok) {
-            await this.reportError(response)
-            return
+            const body = await response.json();
+
+            if(!this.allow_browser_to_manage_tokens) {
+                this.setAccessToken(body.access_token)
+            }
+            this.calcAndSaveAccessTokenRefreshTime(body.access_token);
+    
+        } catch(e:any) {
+            this.reportErrorString(
+                'Error while retrieving access token',
+                e.toString()
+            );
+            throw e
+        } finally {
         }
 
-        const body = await response.json();
-
-        if(!this.allow_browser_to_manage_tokens) {
-            this.setAccessToken(body.access_token)
-        }
-        this.calcAndSaveAccessTokenRefreshTime(body.access_token);
     }
 
     protected async refreshAccessToken() {
@@ -401,29 +426,40 @@ export class IOStackClient {
         headers.append('Content-Type', 'application/json');
         headers.set('Authorization', 'Bearer ' + this.getRefreshToken());
 
-        const response = await fetch(
-            this.platform_root + `/v1/use_case/session/${this.session_id}/access_token`,
-            {
-                method: 'POST',
-                headers: headers,
-                body: JSON.stringify({
-                    include_http_only_cookie: this.allow_browser_to_manage_tokens
-                }),
-                credentials: 'include',
+        try {
+            const response = await fetch(
+                this.platform_root + `/v1/use_case/session/${this.session_id}/access_token`,
+                {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        include_http_only_cookie: this.allow_browser_to_manage_tokens
+                    }),
+                    credentials: 'include',
+                }
+            )
+
+            if (!response.ok) {
+                await this.reportError(response)
+                return
             }
-        )
 
-        if (!response.ok) {
-            await this.reportError(response)
-            return
+            const body = await response.json();
+
+            if(!this.allow_browser_to_manage_tokens) {
+                this.setAccessToken(body.access_token)
+            }
+            this.calcAndSaveAccessTokenRefreshTime(body.access_token);
+
+        } catch(e:any) {
+            this.reportErrorString(
+                'Error while refreshing access token',
+                e.toString()
+            );
+            throw e
+        } finally {
         }
 
-        const body = await response.json();
-
-        if(!this.allow_browser_to_manage_tokens) {
-            this.setAccessToken(body.access_token)
-        }
-        this.calcAndSaveAccessTokenRefreshTime(body.access_token);
 
     }
 
@@ -437,20 +473,30 @@ export class IOStackClient {
 
         const headers = this.getHeaders();
 
-        const response = await fetch(this.platform_root + '/v1/use_case/meta', {
-            method: 'GET',
-            headers: headers,
-            credentials: 'include',
-        })
+        try {
+            const response = await fetch(this.platform_root + '/v1/use_case/meta', {
+                method: 'GET',
+                headers: headers,
+                credentials: 'include',
+            })
 
-        if (!response.ok) {
-            await this.reportError(response)
-            return
+            if (!response.ok) {
+                await this.reportError(response)
+                return
+            }
+
+            const body = await response.json();
+
+            this.metadata = body.use_case
+
+        } catch(e:any) {
+            this.reportErrorString(
+                'Error while retrieving use case metadata',
+                e.toString()
+            );
+            throw e
+        } finally {
         }
-
-        const body = await response.json();
-
-        this.metadata = body.use_case
 
     }
 
