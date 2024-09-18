@@ -173,10 +173,15 @@ class IOStackClient {
     }
     startSession() {
         return __awaiter(this, void 0, void 0, function* () {
-            yield this.establishSession();
-            yield this.retrieveAccessToken();
-            yield this.retrieveUseCaseMetaData();
-            yield this.sendMessageAndStreamResponse(this.metadata.trigger_phrase);
+            try {
+                yield this.establishSession();
+                yield this.retrieveAccessToken();
+                yield this.retrieveUseCaseMetaData();
+                yield this.sendMessageAndStreamResponse(this.metadata.trigger_phrase);
+            }
+            finally {
+                // All errors and exceptions should have been reported via the callback
+            }
         });
     }
     getHeaders() {
@@ -290,19 +295,27 @@ class IOStackClient {
                 client_data: this.use_case_data,
             };
             const url = this.platform_root + `/v1/use_case/${this.getAccessKey() ? 'session' : 'public_session'}`;
-            const response = yield fetch(url, {
-                method: 'POST',
-                headers: headers,
-                body: JSON.stringify(postBody),
-                credentials: 'include',
-            });
-            if (!response.ok) {
-                yield this.reportError(response);
-                return;
+            try {
+                const response = yield fetch(url, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(postBody),
+                    credentials: 'include',
+                });
+                if (!response.ok) {
+                    yield this.reportError(response);
+                    return;
+                }
+                const body = yield response.json();
+                this.setRefreshToken(body.refresh_token);
+                this.session_id = body.session_id;
             }
-            const body = yield response.json();
-            this.setRefreshToken(body.refresh_token);
-            this.session_id = body.session_id;
+            catch (e) {
+                this.reportErrorString('Error while establishing response', e.toString());
+                throw e;
+            }
+            finally {
+            }
         });
     }
     retrieveAccessToken() {
@@ -315,23 +328,31 @@ class IOStackClient {
             const headers = new Headers();
             headers.append('Content-Type', 'application/json');
             headers.set('Authorization', 'Bearer ' + this.getRefreshToken());
-            const response = yield fetch(this.platform_root + `/v1/use_case/session/${this.session_id}/access_token`, {
-                method: 'POST',
-                headers: headers,
-                body: JSON.stringify({
-                    include_http_only_cookie: this.allow_browser_to_manage_tokens
-                }),
-                credentials: 'include',
-            });
-            if (!response.ok) {
-                yield this.reportError(response);
-                return;
+            try {
+                const response = yield fetch(this.platform_root + `/v1/use_case/session/${this.session_id}/access_token`, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        include_http_only_cookie: this.allow_browser_to_manage_tokens
+                    }),
+                    credentials: 'include',
+                });
+                if (!response.ok) {
+                    yield this.reportError(response);
+                    return;
+                }
+                const body = yield response.json();
+                if (!this.allow_browser_to_manage_tokens) {
+                    this.setAccessToken(body.access_token);
+                }
+                this.calcAndSaveAccessTokenRefreshTime(body.access_token);
             }
-            const body = yield response.json();
-            if (!this.allow_browser_to_manage_tokens) {
-                this.setAccessToken(body.access_token);
+            catch (e) {
+                this.reportErrorString('Error while retrieving access token', e.toString());
+                throw e;
             }
-            this.calcAndSaveAccessTokenRefreshTime(body.access_token);
+            finally {
+            }
         });
     }
     refreshAccessToken() {
@@ -344,23 +365,31 @@ class IOStackClient {
             const headers = new Headers();
             headers.append('Content-Type', 'application/json');
             headers.set('Authorization', 'Bearer ' + this.getRefreshToken());
-            const response = yield fetch(this.platform_root + `/v1/use_case/session/${this.session_id}/access_token`, {
-                method: 'POST',
-                headers: headers,
-                body: JSON.stringify({
-                    include_http_only_cookie: this.allow_browser_to_manage_tokens
-                }),
-                credentials: 'include',
-            });
-            if (!response.ok) {
-                yield this.reportError(response);
-                return;
+            try {
+                const response = yield fetch(this.platform_root + `/v1/use_case/session/${this.session_id}/access_token`, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        include_http_only_cookie: this.allow_browser_to_manage_tokens
+                    }),
+                    credentials: 'include',
+                });
+                if (!response.ok) {
+                    yield this.reportError(response);
+                    return;
+                }
+                const body = yield response.json();
+                if (!this.allow_browser_to_manage_tokens) {
+                    this.setAccessToken(body.access_token);
+                }
+                this.calcAndSaveAccessTokenRefreshTime(body.access_token);
             }
-            const body = yield response.json();
-            if (!this.allow_browser_to_manage_tokens) {
-                this.setAccessToken(body.access_token);
+            catch (e) {
+                this.reportErrorString('Error while refreshing access token', e.toString());
+                throw e;
             }
-            this.calcAndSaveAccessTokenRefreshTime(body.access_token);
+            finally {
+            }
         });
     }
     retrieveUseCaseMetaData() {
@@ -370,17 +399,25 @@ class IOStackClient {
                 yield this.refreshAccessToken();
             }
             const headers = this.getHeaders();
-            const response = yield fetch(this.platform_root + '/v1/use_case/meta', {
-                method: 'GET',
-                headers: headers,
-                credentials: 'include',
-            });
-            if (!response.ok) {
-                yield this.reportError(response);
-                return;
+            try {
+                const response = yield fetch(this.platform_root + '/v1/use_case/meta', {
+                    method: 'GET',
+                    headers: headers,
+                    credentials: 'include',
+                });
+                if (!response.ok) {
+                    yield this.reportError(response);
+                    return;
+                }
+                const body = yield response.json();
+                this.metadata = body.use_case;
             }
-            const body = yield response.json();
-            this.metadata = body.use_case;
+            catch (e) {
+                this.reportErrorString('Error while retrieving use case metadata', e.toString());
+                throw e;
+            }
+            finally {
+            }
         });
     }
     calcAndSaveAccessTokenRefreshTime(refresh_token) {
