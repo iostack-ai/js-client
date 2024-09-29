@@ -46,6 +46,7 @@ export declare class IOStackClient {
     private metadata;
     private decoder;
     private allow_browser_to_manage_tokens;
+    protected stream_post_data_addenda: Record<string, any>;
     private streamFragmentHandlers;
     private llmStatsHandlers;
     private errorHandlers;

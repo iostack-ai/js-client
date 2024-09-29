@@ -117,6 +117,7 @@ class IOStackClient {
         this.errorHandlers = [];
         this.useCaseNotificationHandlers = [];
         this.useCaseActiveNodeChangeNotificationHandlers = [];
+        this.stream_post_data_addenda = {};
         this.decoder = new TextDecoder();
         // Set up a closure for sensitive data
         const closure = {
@@ -205,9 +206,7 @@ class IOStackClient {
                 yield this.refreshAccessToken();
             }
             const headers = this.getHeaders();
-            const postBody = {
-                message: message,
-            };
+            const postBody = Object.assign({ message: message }, this.stream_post_data_addenda);
             try {
                 const response = yield fetch(this.platform_root + `/v1/use_case/session/${this.session_id}/stream`, {
                     method: 'POST',
