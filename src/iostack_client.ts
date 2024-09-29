@@ -66,6 +66,7 @@ export class IOStackClient {
     private metadata: any | null;
     private decoder: TextDecoder;
     private allow_browser_to_manage_tokens: boolean;
+    protected stream_post_data_addenda: Record<string, any>;
 
     private streamFragmentHandlers: StreamFragmentHandler[];
     private llmStatsHandlers: LLMStatsHandler[];
@@ -107,6 +108,7 @@ export class IOStackClient {
         this.errorHandlers = []
         this.useCaseNotificationHandlers = []
         this.useCaseActiveNodeChangeNotificationHandlers = []
+        this.stream_post_data_addenda = {}
 
         this.decoder = new TextDecoder();
 
@@ -220,6 +222,7 @@ export class IOStackClient {
 
         const postBody = {
             message: message,
+            ...this.stream_post_data_addenda
         };
 
         try {
