@@ -32,6 +32,11 @@ export interface UseCaseNotificationPacket extends ClientNotificationPacket {
     name: string;
 }
 
+export interface StreamedReferenceNotificationPacket extends ClientNotificationPacket {
+    name: string;
+    value: Record<string, any>;
+}
+
 export interface SessionStateUpdateNotificationPacket extends UseCaseNotificationPacket {
     data: Record<string, any>;
 }
@@ -55,7 +60,8 @@ type StreamFragmentHandler = (fragment: StreamFragmentPacket) => Promise<void>
 type LLMStatsHandler = (stats: LLMStatsPacket) => Promise<void>
 type ErrorHandler = (error: string) => Promise<void>
 type UseCaseNoficationHandler = (notification: UseCaseNotificationPacket) => Promise<void>
-type UseCaseActiveNodeChangeNoficationHandler = (notification: UseCaseActiveNodeChangeNotification) => Promise<void>
+type UseCaseActiveNodeChangeNotificationHandler = (notification: UseCaseActiveNodeChangeNotification) => Promise<void>
+type StreamedReferenceNotificationHandler = (notification: StreamedReferenceNotificationPacket) => Promise<void>
 
 export class IOStackClient {
 
@@ -72,7 +78,8 @@ export class IOStackClient {
     private llmStatsHandlers: LLMStatsHandler[];
     private errorHandlers: ErrorHandler[];
     private useCaseNotificationHandlers: UseCaseNoficationHandler[];
-    private useCaseActiveNodeChangeNotificationHandlers: UseCaseActiveNodeChangeNoficationHandler[];
+    private useCaseActiveNodeChangeNotificationHandlers: UseCaseActiveNodeChangeNotificationHandler[];
+    private useCaseStreamedReferenceNotificationHandlers: StreamedReferenceNotificationHandler[];
 
     private setRefreshToken: (i: string) => void;
     private getRefreshToken: () => string;
@@ -108,6 +115,7 @@ export class IOStackClient {
         this.errorHandlers = []
         this.useCaseNotificationHandlers = []
         this.useCaseActiveNodeChangeNotificationHandlers = []
+        this.useCaseStreamedReferenceNotificationHandlers = []
         this.stream_post_data_addenda = {}
 
         this.decoder = new TextDecoder();
@@ -150,6 +158,7 @@ export class IOStackClient {
         this.errorHandlers = []
         this.useCaseNotificationHandlers = []
         this.useCaseActiveNodeChangeNotificationHandlers = []
+        this.useCaseStreamedReferenceNotificationHandlers = []
     }
 
     public registerStreamFragmentHandler(h: StreamFragmentHandler): void {
@@ -168,7 +177,11 @@ export class IOStackClient {
         this.useCaseNotificationHandlers.push(h)
     }
 
-    public registerUseCaseActiveNodeChangeNotificationHandler(h: UseCaseActiveNodeChangeNoficationHandler): void {
+    public registerUseCaseStreamReferenceNotificationHandler(h: StreamedReferenceNotificationHandler): void {
+        this.useCaseStreamedReferenceNotificationHandlers.push(h)
+    }
+
+    public registerUseCaseActiveNodeChangeNotificationHandler(h: UseCaseActiveNodeChangeNotificationHandler): void {
         this.useCaseActiveNodeChangeNotificationHandlers.push(h)
     }
 
@@ -298,6 +311,10 @@ export class IOStackClient {
             case 'use_case_notification':
                 await this.handleUseCaseNotification(streamedResponse as UseCaseNotificationPacket);
                 break;
+
+            case 'streamed_ref':
+                await this.handleUseCaseStreamedReferenceNotification(streamedResponse as StreamedReferenceNotificationPacket);
+                break
 
             default:
                 console.log(
@@ -537,6 +554,12 @@ export class IOStackClient {
 
     private async handleExternalUseCaseNotification(notification: UseCaseNotificationPacket) {
         this.useCaseNotificationHandlers.forEach(async h => {
+            await h(notification)
+        })
+    }
+
+    private async handleUseCaseStreamedReferenceNotification(notification: StreamedReferenceNotificationPacket) {
+        this.useCaseStreamedReferenceNotificationHandlers.forEach(async h => {
             await h(notification)
         })
     }

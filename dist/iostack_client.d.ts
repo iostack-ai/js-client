@@ -18,6 +18,10 @@ export interface LLMStatsPacket extends ClientNotificationPacket {
 export interface UseCaseNotificationPacket extends ClientNotificationPacket {
     name: string;
 }
+export interface StreamedReferenceNotificationPacket extends ClientNotificationPacket {
+    name: string;
+    value: Record<string, any>;
+}
 export interface SessionStateUpdateNotificationPacket extends UseCaseNotificationPacket {
     data: Record<string, any>;
 }
@@ -37,7 +41,8 @@ type StreamFragmentHandler = (fragment: StreamFragmentPacket) => Promise<void>;
 type LLMStatsHandler = (stats: LLMStatsPacket) => Promise<void>;
 type ErrorHandler = (error: string) => Promise<void>;
 type UseCaseNoficationHandler = (notification: UseCaseNotificationPacket) => Promise<void>;
-type UseCaseActiveNodeChangeNoficationHandler = (notification: UseCaseActiveNodeChangeNotification) => Promise<void>;
+type UseCaseActiveNodeChangeNotificationHandler = (notification: UseCaseActiveNodeChangeNotification) => Promise<void>;
+type StreamedReferenceNotificationHandler = (notification: StreamedReferenceNotificationPacket) => Promise<void>;
 export declare class IOStackClient {
     protected platform_root: string;
     private use_case;
@@ -46,11 +51,13 @@ export declare class IOStackClient {
     private metadata;
     private decoder;
     private allow_browser_to_manage_tokens;
+    protected stream_post_data_addenda: Record<string, any>;
     private streamFragmentHandlers;
     private llmStatsHandlers;
     private errorHandlers;
     private useCaseNotificationHandlers;
     private useCaseActiveNodeChangeNotificationHandlers;
+    private useCaseStreamedReferenceNotificationHandlers;
     private setRefreshToken;
     private getRefreshToken;
     private setAccessToken;
@@ -70,7 +77,8 @@ export declare class IOStackClient {
     registerLLMStatsHandler(h: LLMStatsHandler): void;
     registerErrorHandler(h: ErrorHandler): void;
     registerUseCaseNotificationHandler(h: UseCaseNoficationHandler): void;
-    registerUseCaseActiveNodeChangeNotificationHandler(h: UseCaseActiveNodeChangeNoficationHandler): void;
+    registerUseCaseStreamReferenceNotificationHandler(h: StreamedReferenceNotificationHandler): void;
+    registerUseCaseActiveNodeChangeNotificationHandler(h: UseCaseActiveNodeChangeNotificationHandler): void;
     getTriggerPrompt(): string;
     startSession(): Promise<void>;
     protected getHeaders(): Headers;
@@ -87,6 +95,7 @@ export declare class IOStackClient {
     private handleLLMStats;
     private handleError;
     private handleExternalUseCaseNotification;
+    private handleUseCaseStreamedReferenceNotification;
     private handleActiveNodeChange;
     protected reportError(response: Response): Promise<void>;
     protected reportErrorString(error: string, message: string): Promise<void>;
