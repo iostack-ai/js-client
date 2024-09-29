@@ -117,6 +117,7 @@ class IOStackClient {
         this.errorHandlers = [];
         this.useCaseNotificationHandlers = [];
         this.useCaseActiveNodeChangeNotificationHandlers = [];
+        this.useCaseStreamedReferenceNotificationHandlers = [];
         this.stream_post_data_addenda = {};
         this.decoder = new TextDecoder();
         // Set up a closure for sensitive data
@@ -150,6 +151,7 @@ class IOStackClient {
         this.errorHandlers = [];
         this.useCaseNotificationHandlers = [];
         this.useCaseActiveNodeChangeNotificationHandlers = [];
+        this.useCaseStreamedReferenceNotificationHandlers = [];
     }
     registerStreamFragmentHandler(h) {
         this.streamFragmentHandlers.push(h);
@@ -162,6 +164,9 @@ class IOStackClient {
     }
     registerUseCaseNotificationHandler(h) {
         this.useCaseNotificationHandlers.push(h);
+    }
+    registerUseCaseStreamReferenceNotificationHandler(h) {
+        this.useCaseStreamedReferenceNotificationHandlers.push(h);
     }
     registerUseCaseActiveNodeChangeNotificationHandler(h) {
         this.useCaseActiveNodeChangeNotificationHandlers.push(h);
@@ -264,6 +269,9 @@ class IOStackClient {
                     break;
                 case 'use_case_notification':
                     yield this.handleUseCaseNotification(streamedResponse);
+                    break;
+                case 'streamed_ref':
+                    yield this.handleUseCaseStreamedReferenceNotification(streamedResponse);
                     break;
                 default:
                     console.log('Unknown streaming packet seen:\n' + streamedResponseString);
@@ -454,6 +462,13 @@ class IOStackClient {
     handleExternalUseCaseNotification(notification) {
         return __awaiter(this, void 0, void 0, function* () {
             this.useCaseNotificationHandlers.forEach((h) => __awaiter(this, void 0, void 0, function* () {
+                yield h(notification);
+            }));
+        });
+    }
+    handleUseCaseStreamedReferenceNotification(notification) {
+        return __awaiter(this, void 0, void 0, function* () {
+            this.useCaseStreamedReferenceNotificationHandlers.forEach((h) => __awaiter(this, void 0, void 0, function* () {
                 yield h(notification);
             }));
         });
