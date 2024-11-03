@@ -526,7 +526,7 @@ export class IOStackClient {
         const abortHandler = new IOStackAbortHandler(30 * 1000)
 
         try {
-            const response = await fetch(this.platform_root + '/v1/use_case/meta', {
+            const response = await fetch(this.platform_root + '/v1/use_case/meta?details=trigger_phrase', {
                 method: 'GET',
                 headers: headers,
                 credentials: 'include',
