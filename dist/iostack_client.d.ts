@@ -45,7 +45,6 @@ type UseCaseActiveNodeChangeNotificationHandler = (notification: UseCaseActiveNo
 type StreamedReferenceNotificationHandler = (notification: StreamedReferenceNotificationPacket) => Promise<void>;
 export declare class IOStackClient {
     protected platform_root: string;
-    private use_case;
     private use_case_data;
     private session_id;
     private metadata;
@@ -65,11 +64,10 @@ export declare class IOStackClient {
     private getAccessKey;
     private setAccessTokenRefreshTime;
     protected accessTokenExpired: () => boolean;
-    constructor({ access_key, use_case_data, allow_browser_to_manage_tokens, use_case, platform_root, }: {
-        access_key: string | null;
+    constructor({ access_key, use_case_data, allow_browser_to_manage_tokens, platform_root, }: {
+        access_key: string;
         use_case_data: Record<string, any>;
         allow_browser_to_manage_tokens: boolean;
-        use_case?: string | undefined;
         platform_root?: string | undefined;
     });
     deregisterAllHandlers(): void;

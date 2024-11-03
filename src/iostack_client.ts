@@ -3,7 +3,7 @@ import { jwtDecode } from 'jwt-decode';
 type Closure = {
     refresh_token: string
     access_token: string
-    access_key: string|null
+    access_key: string
     access_token_refresh_time: Date|null
 }
 
@@ -63,10 +63,31 @@ type UseCaseNoficationHandler = (notification: UseCaseNotificationPacket) => Pro
 type UseCaseActiveNodeChangeNotificationHandler = (notification: UseCaseActiveNodeChangeNotification) => Promise<void>
 type StreamedReferenceNotificationHandler = (notification: StreamedReferenceNotificationPacket) => Promise<void>
 
+class IOStackAbortHandler {
+
+    private controller:AbortController;
+    private signal:AbortSignal;
+    private timeoutId:NodeJS.Timeout;
+
+    constructor(timeoutInMillis:number) {
+        this.controller = new AbortController();
+        this.signal = this.controller.signal;
+        this.timeoutId = setTimeout(() => this.controller.abort(), timeoutInMillis);
+    }
+
+    getSignal() {
+        return this.signal
+    }
+
+    reset() {
+        clearTimeout(this.timeoutId)
+    }
+
+}
+
 export class IOStackClient {
 
     protected platform_root: string;
-    private use_case: string | null;
     private use_case_data: Record<string, any>;
     private session_id: string | null;
     private metadata: any | null;
@@ -85,7 +106,7 @@ export class IOStackClient {
     private getRefreshToken: () => string;
     private setAccessToken: (i: string) => void;
     private getAccessToken: () => string;
-    private getAccessKey: () => string|null;
+    private getAccessKey: () => string;
 
     private setAccessTokenRefreshTime: (i: Date) => void;
     protected accessTokenExpired: () => boolean;
@@ -94,18 +115,15 @@ export class IOStackClient {
         access_key,
         use_case_data,
         allow_browser_to_manage_tokens,
-        use_case,
         platform_root,
     } : {
-        access_key: string|null,
+        access_key: string,
         use_case_data: Record<string, any>,
         allow_browser_to_manage_tokens: boolean,
-        use_case?: string | undefined,
         platform_root?: string | undefined,
     }) {
 
         this.platform_root = platform_root || "https://platform.iostack.ai";
-        this.use_case = use_case || "";
         this.use_case_data = use_case_data
         this.allow_browser_to_manage_tokens = allow_browser_to_manage_tokens
         this.session_id = null;
@@ -238,6 +256,8 @@ export class IOStackClient {
             ...this.stream_post_data_addenda
         };
 
+        const abortHandler = new IOStackAbortHandler(60 * 1000)
+
         try {
 
             const response: Response = await fetch(this.platform_root + `/v1/use_case/session/${this.session_id}/stream`, {
@@ -245,9 +265,9 @@ export class IOStackClient {
                 headers: headers,
                 body: JSON.stringify(postBody),
                 credentials: !this.allow_browser_to_manage_tokens ? 'omit' : 'include',
+                signal:abortHandler.getSignal()
             });
 
-            
             if (!response.ok || !response.body) {
                 await this.reportError(response);
                 return;
@@ -272,6 +292,7 @@ export class IOStackClient {
                 e.toString()
             );
         } finally {
+            abortHandler.reset()
         }
     }
 
@@ -341,17 +362,16 @@ export class IOStackClient {
 
         const headers = new Headers();
         headers.append('Content-Type', 'application/json');
-
-        if(this.getAccessKey()) {
-            headers.set('Authorization', 'Bearer ' + this.getAccessKey());
-        }
+        headers.set('Authorization', 'Bearer ' + this.getAccessKey());
 
         const postBody = {
-            use_case_id: this.getAccessKey() ? undefined : this.use_case,
+            use_case_id: this.getAccessKey(),
             client_data: this.use_case_data,
         };
 
-        const url = this.platform_root + `/v1/use_case/${this.getAccessKey() ? 'session' : 'public_session'}`
+        const url = this.platform_root + `/v1/use_case/session`
+
+        const abortHandler = new IOStackAbortHandler(30 * 1000)
 
         try {
             const response = await fetch(
@@ -361,6 +381,7 @@ export class IOStackClient {
                     headers: headers,
                     body: JSON.stringify(postBody),
                     credentials: 'include',
+                    signal: abortHandler.getSignal()
                 }
             )
 
@@ -380,6 +401,7 @@ export class IOStackClient {
             );
             throw e
         } finally {
+            abortHandler.reset()
         }
 
     }
@@ -397,6 +419,8 @@ export class IOStackClient {
         headers.append('Content-Type', 'application/json');
         headers.set('Authorization', 'Bearer ' + this.getRefreshToken());
 
+        const abortHandler = new IOStackAbortHandler(30 * 1000)
+
         try {
             const response = await fetch(
                 this.platform_root + `/v1/use_case/session/${this.session_id}/access_token`,
@@ -407,6 +431,7 @@ export class IOStackClient {
                         include_http_only_cookie: this.allow_browser_to_manage_tokens
                     }),
                     credentials: 'include',
+                    signal: abortHandler.getSignal()
                 }
             )
 
@@ -429,6 +454,7 @@ export class IOStackClient {
             );
             throw e
         } finally {
+            abortHandler.reset()
         }
 
     }
@@ -446,6 +472,8 @@ export class IOStackClient {
         headers.append('Content-Type', 'application/json');
         headers.set('Authorization', 'Bearer ' + this.getRefreshToken());
 
+        const abortHandler = new IOStackAbortHandler(30 * 1000)
+
         try {
             const response = await fetch(
                 this.platform_root + `/v1/use_case/session/${this.session_id}/access_token`,
@@ -456,6 +484,7 @@ export class IOStackClient {
                         include_http_only_cookie: this.allow_browser_to_manage_tokens
                     }),
                     credentials: 'include',
+                    signal:abortHandler.getSignal()
                 }
             )
 
@@ -478,6 +507,7 @@ export class IOStackClient {
             );
             throw e
         } finally {
+            abortHandler.reset()
         }
 
 
@@ -493,11 +523,14 @@ export class IOStackClient {
 
         const headers = this.getHeaders();
 
+        const abortHandler = new IOStackAbortHandler(30 * 1000)
+
         try {
             const response = await fetch(this.platform_root + '/v1/use_case/meta', {
                 method: 'GET',
                 headers: headers,
                 credentials: 'include',
+                signal:abortHandler.getSignal()
             })
 
             if (!response.ok) {
@@ -516,6 +549,7 @@ export class IOStackClient {
             );
             throw e
         } finally {
+            abortHandler.reset()
         }
 
     }
