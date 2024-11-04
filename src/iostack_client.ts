@@ -153,10 +153,10 @@ export type ClientConstructorArgs = {
 }
 
 export function newIOStackClient(args: ClientConstructorArgs): IOStackClient {
-    return new (ClientConstructor as any)(args)
+    return new (IOStackClientConstructor as any)(args)
 }
 
-function ClientConstructor (
+export function IOStackClientConstructor (
     this: IOStackClientImplementation,
     args : ClientConstructorArgs
 ) {
@@ -559,7 +559,7 @@ function ClientConstructor (
 
 }
 
-ClientConstructor.prototype.startSession = async function() {
+IOStackClientConstructor.prototype.startSession = async function() {
 
     try {
         await this.establishSession();
@@ -575,7 +575,7 @@ ClientConstructor.prototype.startSession = async function() {
     }
 }
 
-ClientConstructor.prototype.sendMessageAndStreamResponse = async function(message: string): Promise<void> {
+IOStackClientConstructor.prototype.sendMessageAndStreamResponse = async function(message: string): Promise<void> {
 
     if(!message) {
         return

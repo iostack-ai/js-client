@@ -56,6 +56,36 @@ export interface IOStackClient {
     sendMessageAndStreamResponse(message: string): Promise<void>;
     reportError(response: Response): Promise<void>;
 }
+interface IOStackClientImplementation extends IOStackClient {
+    platform_root: string;
+    stream_post_data_addenda: {};
+    use_case_data: {};
+    session_id: string | null;
+    streamFragmentHandlers: StreamFragmentHandler[];
+    llmStatsHandlers: LLMStatsHandler[];
+    errorHandlers: ErrorHandler[];
+    useCaseNotificationHandlers: UseCaseNoficationHandler[];
+    useCaseActiveNodeChangeNotificationHandlers: UseCaseActiveNodeChangeNotificationHandler[];
+    useCaseStreamedReferenceNotificationHandlers: StreamedReferenceNotificationHandler[];
+    metadata_list: string[];
+    decoder: TextDecoder;
+    metadata: Record<string, any> | null;
+    getHeaders(): Promise<Headers>;
+    establishSession(): Promise<void>;
+    retrieveAccessToken(): Promise<void>;
+    processMessage(message: ReadableStreamReadResult<Uint8Array>): Promise<void>;
+    handleStreamingResponse(streamedResponseString: string): Promise<void>;
+    handleUseCaseNotification(result: UseCaseNotificationPacket): Promise<void>;
+    handleStreamedFragment(fragment: StreamFragmentPacket): Promise<void>;
+    handleLLMStats(stats: LLMStatsPacket): Promise<void>;
+    handleError(error: string): Promise<void>;
+    handleExternalUseCaseNotification(notification: UseCaseNotificationPacket): Promise<void>;
+    handleUseCaseStreamedReferenceNotification(notification: StreamedReferenceNotificationPacket): Promise<void>;
+    handleActiveNodeChange(notification: UseCaseActiveNodeChangeNotification): Promise<void>;
+    refreshAccessToken(): Promise<void>;
+    retrieveUseCaseMetaData(): Promise<void>;
+    reportErrorString(error: string, message: string): Promise<void>;
+}
 export type ClientConstructorArgs = {
     access_key: string;
     use_case_data?: Record<string, any> | undefined;
@@ -63,4 +93,5 @@ export type ClientConstructorArgs = {
     metadata_list?: string[] | undefined;
 };
 export declare function newIOStackClient(args: ClientConstructorArgs): IOStackClient;
+export declare function IOStackClientConstructor(this: IOStackClientImplementation, args: ClientConstructorArgs): void;
 export {};

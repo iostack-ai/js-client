@@ -90,6 +90,7 @@ module.exports = __WEBPACK_EXTERNAL_MODULE__372__;
 var __webpack_exports__ = {};
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   IOStackClientConstructor: () => (/* binding */ IOStackClientConstructor),
 /* harmony export */   newIOStackClient: () => (/* binding */ newIOStackClient)
 /* harmony export */ });
 /* harmony import */ var jwt_decode__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(372);
@@ -118,9 +119,9 @@ class IOStackAbortHandler {
     }
 }
 function newIOStackClient(args) {
-    return new ClientConstructor(args);
+    return new IOStackClientConstructor(args);
 }
-function ClientConstructor(args) {
+function IOStackClientConstructor(args) {
     this.platform_root = args.platform_root || "https://platform.iostack.ai";
     this.use_case_data = args.use_case_data || {};
     this.session_id = null;
@@ -445,7 +446,7 @@ function ClientConstructor(args) {
         });
     };
 }
-ClientConstructor.prototype.startSession = function () {
+IOStackClientConstructor.prototype.startSession = function () {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             yield this.establishSession();
@@ -462,7 +463,7 @@ ClientConstructor.prototype.startSession = function () {
         }
     });
 };
-ClientConstructor.prototype.sendMessageAndStreamResponse = function (message) {
+IOStackClientConstructor.prototype.sendMessageAndStreamResponse = function (message) {
     return __awaiter(this, void 0, void 0, function* () {
         if (!message) {
             return;
