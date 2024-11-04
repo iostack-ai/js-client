@@ -94,6 +94,7 @@ export class IOStackClient {
     private decoder: TextDecoder;
     private allow_browser_to_manage_tokens: boolean;
     protected stream_post_data_addenda: Record<string, any>;
+    private metadata_list: string[];
 
     private streamFragmentHandlers: StreamFragmentHandler[];
     private llmStatsHandlers: LLMStatsHandler[];
@@ -113,28 +114,31 @@ export class IOStackClient {
 
     constructor({
         access_key,
-        use_case_data,
         allow_browser_to_manage_tokens,
+        use_case_data,
         platform_root,
+        metadata_list
     } : {
         access_key: string,
-        use_case_data: Record<string, any>,
         allow_browser_to_manage_tokens: boolean,
+        use_case_data?: Record<string, any> | undefined,
         platform_root?: string | undefined,
+        metadata_list?: string[] | undefined
     }) {
 
         this.platform_root = platform_root || "https://platform.iostack.ai";
-        this.use_case_data = use_case_data
-        this.allow_browser_to_manage_tokens = allow_browser_to_manage_tokens
+        this.use_case_data = use_case_data || {};
+        this.allow_browser_to_manage_tokens = allow_browser_to_manage_tokens;
         this.session_id = null;
         this.metadata = null;
-        this.streamFragmentHandlers = []
-        this.llmStatsHandlers = []
-        this.errorHandlers = []
-        this.useCaseNotificationHandlers = []
+        this.streamFragmentHandlers = [];
+        this.llmStatsHandlers = [];
+        this.errorHandlers = [];
+        this.useCaseNotificationHandlers = [];
         this.useCaseActiveNodeChangeNotificationHandlers = []
         this.useCaseStreamedReferenceNotificationHandlers = []
         this.stream_post_data_addenda = {}
+        this.metadata_list = metadata_list || ["trigger_phrase"]
 
         this.decoder = new TextDecoder();
 
@@ -205,17 +209,28 @@ export class IOStackClient {
 
     public getTriggerPrompt(): string {
         if(!this.metadata) {
-            this.reportErrorString("Can't retrieve trigger prompt", "Metadata has not been retrieved yet")
+            this.reportErrorString("Can't retrieve trigger prompt", "Metadata not retrieved")
         }
         return this.metadata.trigger_phrase
     }
 
     public async startSession() {
+        
         try {
+
             await this.establishSession();
             await this.retrieveAccessToken();
+
+            if(this.metadata_list.length == 0) {
+                return
+            }
+
             await this.retrieveUseCaseMetaData();
-            await this.sendMessageAndStreamResponse(this.metadata.trigger_phrase)
+
+            if(this.metadata.trigger_phrase){
+                await this.sendMessageAndStreamResponse(this.metadata.trigger_phrase)   
+            }
+
         } finally {
             // All errors and exceptions should have been reported via the callback
         }
@@ -524,6 +539,11 @@ export class IOStackClient {
         const headers = this.getHeaders();
 
         const abortHandler = new IOStackAbortHandler(30 * 1000)
+
+        let url = this.platform_root + '/v1/use_case/meta'
+        if(this.metadata_list.length > 0)
+            url = `${url}?details=${this.metadata_list.join("&details=")}`
+        else
 
         try {
             const response = await fetch(this.platform_root + '/v1/use_case/meta?details=trigger_phrase', {

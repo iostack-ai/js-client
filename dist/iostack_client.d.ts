@@ -51,6 +51,7 @@ export declare class IOStackClient {
     private decoder;
     private allow_browser_to_manage_tokens;
     protected stream_post_data_addenda: Record<string, any>;
+    private metadata_list;
     private streamFragmentHandlers;
     private llmStatsHandlers;
     private errorHandlers;
@@ -64,11 +65,12 @@ export declare class IOStackClient {
     private getAccessKey;
     private setAccessTokenRefreshTime;
     protected accessTokenExpired: () => boolean;
-    constructor({ access_key, use_case_data, allow_browser_to_manage_tokens, platform_root, }: {
+    constructor({ access_key, allow_browser_to_manage_tokens, use_case_data, platform_root, metadata_list }: {
         access_key: string;
-        use_case_data: Record<string, any>;
         allow_browser_to_manage_tokens: boolean;
+        use_case_data?: Record<string, any> | undefined;
         platform_root?: string | undefined;
+        metadata_list?: string[] | undefined;
     });
     deregisterAllHandlers(): void;
     registerStreamFragmentHandler(h: StreamFragmentHandler): void;

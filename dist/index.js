@@ -118,9 +118,9 @@ class IOStackAbortHandler {
     }
 }
 class IOStackClient {
-    constructor({ access_key, use_case_data, allow_browser_to_manage_tokens, platform_root, }) {
+    constructor({ access_key, allow_browser_to_manage_tokens, use_case_data, platform_root, metadata_list }) {
         this.platform_root = platform_root || "https://platform.iostack.ai";
-        this.use_case_data = use_case_data;
+        this.use_case_data = use_case_data || {};
         this.allow_browser_to_manage_tokens = allow_browser_to_manage_tokens;
         this.session_id = null;
         this.metadata = null;
@@ -131,6 +131,7 @@ class IOStackClient {
         this.useCaseActiveNodeChangeNotificationHandlers = [];
         this.useCaseStreamedReferenceNotificationHandlers = [];
         this.stream_post_data_addenda = {};
+        this.metadata_list = metadata_list || ["trigger_phrase"];
         this.decoder = new TextDecoder();
         // Set up a closure for sensitive data
         const closure = {
@@ -185,7 +186,7 @@ class IOStackClient {
     }
     getTriggerPrompt() {
         if (!this.metadata) {
-            this.reportErrorString("Can't retrieve trigger prompt", "Metadata has not been retrieved yet");
+            this.reportErrorString("Can't retrieve trigger prompt", "Metadata not retrieved");
         }
         return this.metadata.trigger_phrase;
     }
@@ -194,8 +195,13 @@ class IOStackClient {
             try {
                 yield this.establishSession();
                 yield this.retrieveAccessToken();
+                if (this.metadata_list.length == 0) {
+                    return;
+                }
                 yield this.retrieveUseCaseMetaData();
-                yield this.sendMessageAndStreamResponse(this.metadata.trigger_phrase);
+                if (this.metadata.trigger_phrase) {
+                    yield this.sendMessageAndStreamResponse(this.metadata.trigger_phrase);
+                }
             }
             finally {
                 // All errors and exceptions should have been reported via the callback
@@ -429,27 +435,31 @@ class IOStackClient {
             }
             const headers = this.getHeaders();
             const abortHandler = new IOStackAbortHandler(30 * 1000);
-            try {
-                const response = yield fetch(this.platform_root + '/v1/use_case/meta?details=trigger_phrase', {
-                    method: 'GET',
-                    headers: headers,
-                    credentials: 'include',
-                    signal: abortHandler.getSignal()
-                });
-                if (!response.ok) {
-                    yield this.reportError(response);
-                    return;
+            let url = this.platform_root + '/v1/use_case/meta';
+            if (this.metadata_list.length > 0)
+                url = `${url}?details=${this.metadata_list.join("&details=")}`;
+            else
+                try {
+                    const response = yield fetch(this.platform_root + '/v1/use_case/meta?details=trigger_phrase', {
+                        method: 'GET',
+                        headers: headers,
+                        credentials: 'include',
+                        signal: abortHandler.getSignal()
+                    });
+                    if (!response.ok) {
+                        yield this.reportError(response);
+                        return;
+                    }
+                    const body = yield response.json();
+                    this.metadata = body.use_case;
                 }
-                const body = yield response.json();
-                this.metadata = body.use_case;
-            }
-            catch (e) {
-                this.reportErrorString('Error while retrieving use case metadata', e.toString());
-                throw e;
-            }
-            finally {
-                abortHandler.reset();
-            }
+                catch (e) {
+                    this.reportErrorString('Error while retrieving use case metadata', e.toString());
+                    throw e;
+                }
+                finally {
+                    abortHandler.reset();
+                }
         });
     }
     calcAndSaveAccessTokenRefreshTime(refresh_token) {
