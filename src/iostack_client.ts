@@ -87,25 +87,6 @@ class IOStackAbortHandler {
 
 export interface IOStackClient {
 
-    deregisterAllHandlers(): void;
-    registerStreamFragmentHandler(h: StreamFragmentHandler): void;
-    registerLLMStatsHandler(h: LLMStatsHandler): void;
-    registerErrorHandler(h: ErrorHandler): void;
-    registerUseCaseNotificationHandler(h: UseCaseNoficationHandler): void;
-    registerUseCaseStreamReferenceNotificationHandler(h: StreamedReferenceNotificationHandler): void;
-    registerUseCaseActiveNodeChangeNotificationHandler(h: UseCaseActiveNodeChangeNotificationHandler): void;
-
-    getTriggerPrompt(): string;
-
-    startSession(): Promise<void>;
-    sendMessageAndStreamResponse(message: string): Promise<void>;
-
-    reportError(response: Response): Promise<void>;
-
-}
-
-interface IOStackClientImplementation extends IOStackClient {
-
     platform_root:string;
     stream_post_data_addenda:{};
 
@@ -120,6 +101,21 @@ interface IOStackClientImplementation extends IOStackClient {
     metadata_list:string[];
     decoder:TextDecoder;
     metadata:Record<string, any>|null;
+
+    deregisterAllHandlers(): void;
+    registerStreamFragmentHandler(h: StreamFragmentHandler): void;
+    registerLLMStatsHandler(h: LLMStatsHandler): void;
+    registerErrorHandler(h: ErrorHandler): void;
+    registerUseCaseNotificationHandler(h: UseCaseNoficationHandler): void;
+    registerUseCaseStreamReferenceNotificationHandler(h: StreamedReferenceNotificationHandler): void;
+    registerUseCaseActiveNodeChangeNotificationHandler(h: UseCaseActiveNodeChangeNotificationHandler): void;
+
+    getTriggerPrompt(): string;
+
+    startSession(): Promise<void>;
+    sendMessageAndStreamResponse(message: string): Promise<void>;
+
+    reportError(response: Response): Promise<void>;
 
     getHeaders(): Promise<Headers>;
 
@@ -157,7 +153,7 @@ export function newIOStackClient(args: ClientConstructorArgs): IOStackClient {
 }
 
 export function IOStackClientConstructor (
-    this: IOStackClientImplementation,
+    this: IOStackClient,
     args : ClientConstructorArgs
 ) {
 

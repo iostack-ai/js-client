@@ -44,19 +44,6 @@ type UseCaseNoficationHandler = (notification: UseCaseNotificationPacket) => Pro
 type UseCaseActiveNodeChangeNotificationHandler = (notification: UseCaseActiveNodeChangeNotification) => Promise<void>;
 type StreamedReferenceNotificationHandler = (notification: StreamedReferenceNotificationPacket) => Promise<void>;
 export interface IOStackClient {
-    deregisterAllHandlers(): void;
-    registerStreamFragmentHandler(h: StreamFragmentHandler): void;
-    registerLLMStatsHandler(h: LLMStatsHandler): void;
-    registerErrorHandler(h: ErrorHandler): void;
-    registerUseCaseNotificationHandler(h: UseCaseNoficationHandler): void;
-    registerUseCaseStreamReferenceNotificationHandler(h: StreamedReferenceNotificationHandler): void;
-    registerUseCaseActiveNodeChangeNotificationHandler(h: UseCaseActiveNodeChangeNotificationHandler): void;
-    getTriggerPrompt(): string;
-    startSession(): Promise<void>;
-    sendMessageAndStreamResponse(message: string): Promise<void>;
-    reportError(response: Response): Promise<void>;
-}
-interface IOStackClientImplementation extends IOStackClient {
     platform_root: string;
     stream_post_data_addenda: {};
     use_case_data: {};
@@ -70,6 +57,17 @@ interface IOStackClientImplementation extends IOStackClient {
     metadata_list: string[];
     decoder: TextDecoder;
     metadata: Record<string, any> | null;
+    deregisterAllHandlers(): void;
+    registerStreamFragmentHandler(h: StreamFragmentHandler): void;
+    registerLLMStatsHandler(h: LLMStatsHandler): void;
+    registerErrorHandler(h: ErrorHandler): void;
+    registerUseCaseNotificationHandler(h: UseCaseNoficationHandler): void;
+    registerUseCaseStreamReferenceNotificationHandler(h: StreamedReferenceNotificationHandler): void;
+    registerUseCaseActiveNodeChangeNotificationHandler(h: UseCaseActiveNodeChangeNotificationHandler): void;
+    getTriggerPrompt(): string;
+    startSession(): Promise<void>;
+    sendMessageAndStreamResponse(message: string): Promise<void>;
+    reportError(response: Response): Promise<void>;
     getHeaders(): Promise<Headers>;
     establishSession(): Promise<void>;
     retrieveAccessToken(): Promise<void>;
@@ -93,5 +91,5 @@ export type ClientConstructorArgs = {
     metadata_list?: string[] | undefined;
 };
 export declare function newIOStackClient(args: ClientConstructorArgs): IOStackClient;
-export declare function IOStackClientConstructor(this: IOStackClientImplementation, args: ClientConstructorArgs): void;
+export declare function IOStackClientConstructor(this: IOStackClient, args: ClientConstructorArgs): void;
 export {};
