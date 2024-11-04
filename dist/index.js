@@ -186,9 +186,15 @@ function ClientConstructor(args) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 if (this.snapshot_id) {
-                    yield this.establishSessionFromSnapshot();
-                    yield this.retrieveAccessToken();
+                    const data = yield this.establishSessionFromSnapshot();
                     this.snapshot_id = null;
+                    if (!data)
+                        return;
+                    yield this.retrieveAccessToken();
+                    if (this.metadata_list.length > 0) {
+                        yield this.retrieveUseCaseMetaData();
+                    }
+                    yield this.handleUseCaseNotification(data);
                     return;
                 }
                 yield this.establishSession();
@@ -362,15 +368,15 @@ function ClientConstructor(args) {
                 });
                 if (!response.ok) {
                     yield this.reportError(response);
-                    return;
+                    return null;
                 }
                 const body = yield response.json();
                 setRefreshToken(body.refresh_token);
                 this.session_id = body.response.session_id;
-                yield this.handleUseCaseNotification({
+                return {
                     name: "snapshot_session_created",
                     data: body.response
-                });
+                };
             }
             catch (e) {
                 this.reportErrorString('Error while establishing session from snapshot', e.toString());

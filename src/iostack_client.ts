@@ -106,7 +106,6 @@ export interface IOStackClient {
 
     getHeaders(): Promise<Headers>;
     startSession(): Promise<void>;
-    startSessionFromSnapshot(): Promise<void>;
     sendMessageAndStreamResponse(message: string): Promise<void>;
 
     reportError(response: Response): Promise<void>;
@@ -129,7 +128,7 @@ interface IOStackClientImplementation extends IOStackClient {
     metadata:Record<string, any>|null;
 
     establishSession(): Promise<void>;
-    establishSessionFromSnapshot(): Promise<void>;
+    establishSessionFromSnapshot(): Promise<SnapshotSessionCreateNotificationPacket|null>;
     retrieveAccessToken(): Promise<void>;
 
     processMessage(message: ReadableStreamReadResult<Uint8Array>): Promise<void>;
@@ -246,9 +245,17 @@ function ClientConstructor (
         try {
 
             if(this.snapshot_id) {
-                await this.establishSessionFromSnapshot();
-                await this.retrieveAccessToken();
+
+                const data = await this.establishSessionFromSnapshot();
                 this.snapshot_id = null
+
+                if(!data) return
+                
+                await this.retrieveAccessToken();
+                if(this.metadata_list.length > 0) {
+                    await this.retrieveUseCaseMetaData();
+                }
+                await this.handleUseCaseNotification(data)                
                 return
             }
 
@@ -446,7 +453,7 @@ function ClientConstructor (
 
     }
 
-    this.establishSessionFromSnapshot = async function(): Promise<void> {
+    this.establishSessionFromSnapshot = async function(): Promise<SnapshotSessionCreateNotificationPacket|null> {
 
         console.log("Establishing session")
 
@@ -475,17 +482,17 @@ function ClientConstructor (
 
             if (!response.ok) {
                 await this.reportError(response)
-                return
+                return null
             }
 
             const body = await response.json();
             setRefreshToken(body.refresh_token);
             this.session_id = body.response.session_id;
 
-            await this.handleUseCaseNotification({
+            return {
                 name: "snapshot_session_created",
                 data: body.response
-            } as SnapshotSessionCreateNotificationPacket);
+            } as SnapshotSessionCreateNotificationPacket;
 
         } catch(e:any) {
             this.reportErrorString(

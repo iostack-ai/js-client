@@ -59,7 +59,6 @@ export interface IOStackClient {
     getTriggerPrompt(): string;
     getHeaders(): Promise<Headers>;
     startSession(): Promise<void>;
-    startSessionFromSnapshot(): Promise<void>;
     sendMessageAndStreamResponse(message: string): Promise<void>;
     reportError(response: Response): Promise<void>;
 }
