@@ -438,28 +438,27 @@ class IOStackClient {
             let url = this.platform_root + '/v1/use_case/meta';
             if (this.metadata_list.length > 0)
                 url = `${url}?details=${this.metadata_list.join("&details=")}`;
-            else
-                try {
-                    const response = yield fetch(this.platform_root + '/v1/use_case/meta?details=trigger_phrase', {
-                        method: 'GET',
-                        headers: headers,
-                        credentials: 'include',
-                        signal: abortHandler.getSignal()
-                    });
-                    if (!response.ok) {
-                        yield this.reportError(response);
-                        return;
-                    }
-                    const body = yield response.json();
-                    this.metadata = body.use_case;
+            try {
+                const response = yield fetch(url, {
+                    method: 'GET',
+                    headers: headers,
+                    credentials: 'include',
+                    signal: abortHandler.getSignal()
+                });
+                if (!response.ok) {
+                    yield this.reportError(response);
+                    return;
                 }
-                catch (e) {
-                    this.reportErrorString('Error while retrieving use case metadata', e.toString());
-                    throw e;
-                }
-                finally {
-                    abortHandler.reset();
-                }
+                const body = yield response.json();
+                this.metadata = body.use_case;
+            }
+            catch (e) {
+                this.reportErrorString('Error while retrieving use case metadata', e.toString());
+                throw e;
+            }
+            finally {
+                abortHandler.reset();
+            }
         });
     }
     calcAndSaveAccessTokenRefreshTime(refresh_token) {

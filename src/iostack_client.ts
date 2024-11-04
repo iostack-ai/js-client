@@ -215,7 +215,7 @@ export class IOStackClient {
     }
 
     public async startSession() {
-        
+
         try {
 
             await this.establishSession();
@@ -543,10 +543,9 @@ export class IOStackClient {
         let url = this.platform_root + '/v1/use_case/meta'
         if(this.metadata_list.length > 0)
             url = `${url}?details=${this.metadata_list.join("&details=")}`
-        else
 
         try {
-            const response = await fetch(this.platform_root + '/v1/use_case/meta?details=trigger_phrase', {
+            const response = await fetch(url, {
                 method: 'GET',
                 headers: headers,
                 credentials: 'include',
