@@ -202,10 +202,15 @@ class IOStackClient {
         });
     }
     getHeaders() {
-        const headers = new Headers();
-        headers.append('Content-Type', 'application/json');
-        headers.set('Authorization', 'Bearer ' + this.getAccessToken());
-        return headers;
+        return __awaiter(this, void 0, void 0, function* () {
+            if (this.accessTokenExpired()) {
+                yield this.refreshAccessToken();
+            }
+            const headers = new Headers();
+            headers.append('Content-Type', 'application/json');
+            headers.set('Authorization', 'Bearer ' + this.getAccessToken());
+            return headers;
+        });
     }
     sendMessageAndStreamResponse(message) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -216,10 +221,7 @@ class IOStackClient {
                 this.reportErrorString("Error sending message", "Session has not yet been established");
                 return;
             }
-            if (this.accessTokenExpired()) {
-                yield this.refreshAccessToken();
-            }
-            const headers = this.getHeaders();
+            const headers = yield this.getHeaders();
             const postBody = Object.assign({ message: message }, this.stream_post_data_addenda);
             const abortHandler = new IOStackAbortHandler(60 * 1000);
             try {
@@ -409,10 +411,7 @@ class IOStackClient {
     retrieveUseCaseMetaData() {
         return __awaiter(this, void 0, void 0, function* () {
             console.log('Fetching use case metadata');
-            if (this.accessTokenExpired()) {
-                yield this.refreshAccessToken();
-            }
-            const headers = this.getHeaders();
+            const headers = yield this.getHeaders();
             const abortHandler = new IOStackAbortHandler(30 * 1000);
             let url = this.platform_root + '/v1/use_case/meta';
             if (this.metadata_list.length > 0)

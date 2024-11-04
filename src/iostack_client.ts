@@ -109,7 +109,7 @@ export class IOStackClient {
     private getAccessKey: () => string;
 
     private setAccessTokenRefreshTime: (i: Date) => void;
-    protected accessTokenExpired: () => boolean;
+    private accessTokenExpired: () => boolean;
 
     constructor({
         access_key,
@@ -226,7 +226,11 @@ export class IOStackClient {
         }
     }
 
-    protected getHeaders(): Headers {
+    protected async getHeaders(): Promise<Headers> {
+
+        if (this.accessTokenExpired()) {
+            await this.refreshAccessToken();
+        }
 
         const headers = new Headers();
         
@@ -247,11 +251,7 @@ export class IOStackClient {
             return
         }
 
-        if (this.accessTokenExpired()) {
-            await this.refreshAccessToken();
-        }
-
-        const headers = this.getHeaders();
+        const headers = await this.getHeaders();
 
         const postBody = {
             message: message,
@@ -507,11 +507,7 @@ export class IOStackClient {
 
         console.log('Fetching use case metadata');
 
-        if (this.accessTokenExpired()) {
-            await this.refreshAccessToken();
-        }
-
-        const headers = this.getHeaders();
+        const headers = await this.getHeaders();
 
         const abortHandler = new IOStackAbortHandler(30 * 1000)
 

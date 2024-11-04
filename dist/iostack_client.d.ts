@@ -63,7 +63,7 @@ export declare class IOStackClient {
     private getAccessToken;
     private getAccessKey;
     private setAccessTokenRefreshTime;
-    protected accessTokenExpired: () => boolean;
+    private accessTokenExpired;
     constructor({ access_key, use_case_data, platform_root, metadata_list }: {
         access_key: string;
         use_case_data?: Record<string, any> | undefined;
@@ -79,7 +79,7 @@ export declare class IOStackClient {
     registerUseCaseActiveNodeChangeNotificationHandler(h: UseCaseActiveNodeChangeNotificationHandler): void;
     getTriggerPrompt(): string;
     startSession(): Promise<void>;
-    protected getHeaders(): Headers;
+    protected getHeaders(): Promise<Headers>;
     sendMessageAndStreamResponse(message: string): Promise<void>;
     private processMessage;
     private handleStreamingResponse;
