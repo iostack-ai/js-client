@@ -108,7 +108,7 @@ export interface IOStackClient {
 
 }
 
-interface IOStackClientImplementation extends IOStackClient {
+export interface IOStackClientImplementation extends IOStackClient {
 
     use_case_data:{};
     session_id:string|null;
