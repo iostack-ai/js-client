@@ -85,86 +85,106 @@ class IOStackAbortHandler {
 
 }
 
-export class IOStackClient {
+export interface IOStackClient {
 
-    protected platform_root: string;
-    private use_case_data: Record<string, any>;
-    private session_id: string | null;
-    private metadata: any | null;
-    private decoder: TextDecoder;
-    protected stream_post_data_addenda: Record<string, any>;
-    private metadata_list: string[];
+    platform_root:string;
+    use_case_data:{};
+    session_id:string|null;
+    streamFragmentHandlers:StreamFragmentHandler[];
+    llmStatsHandlers:LLMStatsHandler[];
+    errorHandlers:ErrorHandler[];
+    useCaseNotificationHandlers:UseCaseNoficationHandler[];
+    useCaseActiveNodeChangeNotificationHandlers:UseCaseActiveNodeChangeNotificationHandler[];
+    useCaseStreamedReferenceNotificationHandlers:StreamedReferenceNotificationHandler[];
+    stream_post_data_addenda:{};
+    metadata_list:string[];
+    decoder:TextDecoder;
+    metadata:Record<string, any>|null;
 
-    private streamFragmentHandlers: StreamFragmentHandler[];
-    private llmStatsHandlers: LLMStatsHandler[];
-    private errorHandlers: ErrorHandler[];
-    private useCaseNotificationHandlers: UseCaseNoficationHandler[];
-    private useCaseActiveNodeChangeNotificationHandlers: UseCaseActiveNodeChangeNotificationHandler[];
-    private useCaseStreamedReferenceNotificationHandlers: StreamedReferenceNotificationHandler[];
+    deregisterAllHandlers(): void;
+    registerStreamFragmentHandler(h: StreamFragmentHandler): void;
+    registerLLMStatsHandler(h: LLMStatsHandler): void;
+    registerErrorHandler(h: ErrorHandler): void;
+    registerUseCaseNotificationHandler(h: UseCaseNoficationHandler): void;
+    registerUseCaseStreamReferenceNotificationHandler(h: StreamedReferenceNotificationHandler): void;
+    registerUseCaseActiveNodeChangeNotificationHandler(h: UseCaseActiveNodeChangeNotificationHandler): void;
+    getTriggerPrompt(): string;
 
-    private setRefreshToken: (i: string) => void;
-    private getRefreshToken: () => string;
-    private setAccessToken: (i: string) => void;
-    private getAccessToken: () => string;
-    private getAccessKey: () => string;
+    getHeaders(): Promise<Headers>;
+    startSession(): Promise<void>;
+    establishSession(): Promise<void>;
+    retrieveAccessToken(): Promise<void>;
 
-    private setAccessTokenRefreshTime: (i: Date) => void;
-    private accessTokenExpired: () => boolean;
+    sendMessageAndStreamResponse(message: string): Promise<void>;
 
-    constructor({
-        access_key,
-        use_case_data,
-        platform_root,
-        metadata_list
-    } : {
-        access_key: string,
-        use_case_data?: Record<string, any> | undefined,
-        platform_root?: string | undefined,
-        metadata_list?: string[] | undefined
-    }) {
+    processMessage(message: ReadableStreamReadResult<Uint8Array>): Promise<void>;
 
-        this.platform_root = platform_root || "https://platform.iostack.ai";
-        this.use_case_data = use_case_data || {};
-        this.session_id = null;
-        this.metadata = null;
-        this.streamFragmentHandlers = [];
-        this.llmStatsHandlers = [];
-        this.errorHandlers = [];
-        this.useCaseNotificationHandlers = [];
-        this.useCaseActiveNodeChangeNotificationHandlers = []
-        this.useCaseStreamedReferenceNotificationHandlers = []
-        this.stream_post_data_addenda = {}
-        this.metadata_list = metadata_list || ["trigger_phrase"]
+    handleStreamingResponse(streamedResponseString: string): Promise<void>;
+    handleUseCaseNotification(result: UseCaseNotificationPacket): Promise<void>;
 
-        this.decoder = new TextDecoder();
+    handleStreamedFragment(fragment: StreamFragmentPacket): Promise<void>;
+    handleLLMStats(stats: LLMStatsPacket): Promise<void>;
+    handleError(error: string): Promise<void>;
+    handleExternalUseCaseNotification(notification: UseCaseNotificationPacket): Promise<void>;
+    handleUseCaseStreamedReferenceNotification(notification: StreamedReferenceNotificationPacket): Promise<void>;
+    handleActiveNodeChange(notification: UseCaseActiveNodeChangeNotification): Promise<void>;
 
-        // Set up a closure for sensitive data
+    refreshAccessToken(): Promise<void>;
+    retrieveUseCaseMetaData(): Promise<void>;
 
-        const closure: Closure = {
-            refresh_token: "",
-            access_token: "",
-            access_key: access_key,
-            access_token_refresh_time: new Date(0)
-        }
+    reportError(response: Response): Promise<void>;
+    reportErrorString(error: string, message: string): Promise<void>;
 
-        this.setRefreshToken = function (i) { closure.refresh_token = i }
-        this.getRefreshToken = function () { return closure.refresh_token }
+}
 
-        this.setAccessToken = function (i) { 
-            closure.access_token = i 
-        }
-        this.getAccessToken = function () { 
-            return closure.access_token 
-        }
+export type ClientConstructorArgs = {
+    access_key: string,
+    use_case_data?: Record<string, any> | undefined,
+    platform_root?: string | undefined,
+    metadata_list?: string[] | undefined
+}
 
-        this.getAccessKey = function () { return closure.access_key }
+export function makeIOStackClient(args: ClientConstructorArgs): IOStackClient {
+    return new (Client as any).clientConstructor(args)
+}
 
-        this.setAccessTokenRefreshTime = function (i: Date) { closure.access_token_refresh_time = i }
-        this.accessTokenExpired = function (): boolean { return !!closure.access_token_refresh_time && new Date(Date.now()) >= closure.access_token_refresh_time }
+function Client (
+    this: IOStackClient,
+    args : ClientConstructorArgs
+) {
 
+    this.platform_root = args.platform_root || "https://platform.iostack.ai";
+    this.use_case_data = args.use_case_data || {};
+    this.session_id = null;
+    this.streamFragmentHandlers = [];
+    this.llmStatsHandlers = [];
+    this.errorHandlers = [];
+    this.useCaseNotificationHandlers = [];
+    this.useCaseActiveNodeChangeNotificationHandlers = []
+    this.useCaseStreamedReferenceNotificationHandlers = []
+    this.stream_post_data_addenda = {}
+    this.metadata_list = args.metadata_list || ["trigger_phrase"]
+    this.decoder = new TextDecoder();
+    this.metadata = null;
+
+    // Set up a closure for sensitive data
+
+    const closure: Closure = {
+        refresh_token: "",
+        access_token: "",
+        access_key: args.access_key,
+        access_token_refresh_time: new Date(0)
     }
 
-    public deregisterAllHandlers(): void {
+    const setRefreshToken = function (i: string) { closure.refresh_token = i }
+    const getRefreshToken = function () { return closure.refresh_token }
+    const setAccessToken = function (i: string) { closure.access_token = i }
+    const getAccessToken = function () { return closure.access_token }
+    const getAccessKey = function () { return closure.access_key }
+    const setAccessTokenRefreshTime = function (i: Date) { closure.access_token_refresh_time = i }
+    const accessTokenExpired = function (): boolean { return !!closure.access_token_refresh_time && new Date(Date.now()) >= closure.access_token_refresh_time }
+
+    this.deregisterAllHandlers = function (): void {
         this.streamFragmentHandlers = []
         this.llmStatsHandlers = []
         this.errorHandlers = []
@@ -173,38 +193,39 @@ export class IOStackClient {
         this.useCaseStreamedReferenceNotificationHandlers = []
     }
 
-    public registerStreamFragmentHandler(h: StreamFragmentHandler): void {
+    this.registerStreamFragmentHandler = function(h: StreamFragmentHandler): void {
         this.streamFragmentHandlers.push(h)
     }
 
-    public registerLLMStatsHandler(h: LLMStatsHandler): void {
+    this.registerLLMStatsHandler = function(h: LLMStatsHandler): void {
         this.llmStatsHandlers.push(h)
     }
 
-    public registerErrorHandler(h: ErrorHandler): void {
+    this.registerErrorHandler = function(h: ErrorHandler): void {
         this.errorHandlers.push(h)
     }
 
-    public registerUseCaseNotificationHandler(h: UseCaseNoficationHandler): void {
+    this.registerUseCaseNotificationHandler = function(h: UseCaseNoficationHandler): void {
         this.useCaseNotificationHandlers.push(h)
     }
 
-    public registerUseCaseStreamReferenceNotificationHandler(h: StreamedReferenceNotificationHandler): void {
+    this.registerUseCaseStreamReferenceNotificationHandler = function(h: StreamedReferenceNotificationHandler): void {
         this.useCaseStreamedReferenceNotificationHandlers.push(h)
     }
 
-    public registerUseCaseActiveNodeChangeNotificationHandler(h: UseCaseActiveNodeChangeNotificationHandler): void {
+    this.registerUseCaseActiveNodeChangeNotificationHandler = function(h: UseCaseActiveNodeChangeNotificationHandler): void {
         this.useCaseActiveNodeChangeNotificationHandlers.push(h)
     }
 
-    public getTriggerPrompt(): string {
+    this.getTriggerPrompt = function(): string {
         if(!this.metadata) {
             this.reportErrorString("Can't retrieve trigger prompt", "Metadata not retrieved")
+            return ""
         }
         return this.metadata.trigger_phrase
     }
 
-    public async startSession() {
+    this.startSession = async function() {
 
         try {
 
@@ -217,8 +238,8 @@ export class IOStackClient {
 
             await this.retrieveUseCaseMetaData();
 
-            if(this.metadata.trigger_phrase){
-                await this.sendMessageAndStreamResponse(this.metadata.trigger_phrase)   
+            if(this.metadata!.trigger_phrase){
+                await this.sendMessageAndStreamResponse(this.metadata!.trigger_phrase)   
             }
 
         } finally {
@@ -226,21 +247,21 @@ export class IOStackClient {
         }
     }
 
-    protected async getHeaders(): Promise<Headers> {
+    this.getHeaders = async function(): Promise<Headers> {
 
-        if (this.accessTokenExpired()) {
+        if (accessTokenExpired()) {
             await this.refreshAccessToken();
         }
 
         const headers = new Headers();
         
         headers.append('Content-Type', 'application/json');
-        headers.set('Authorization', 'Bearer ' + this.getAccessToken());
+        headers.set('Authorization', 'Bearer ' + getAccessToken());
 
         return headers
     }
 
-    public async sendMessageAndStreamResponse(message: string): Promise<void> {
+    this.sendMessageAndStreamResponse = async function(message: string): Promise<void> {
 
         if(!message) {
             return
@@ -297,7 +318,7 @@ export class IOStackClient {
         }
     }
 
-    private async processMessage(message: ReadableStreamReadResult<Uint8Array>) {
+    this.processMessage = async function(message: ReadableStreamReadResult<Uint8Array>): Promise<void> {
 
         if (message.done) {
             return;
@@ -311,7 +332,7 @@ export class IOStackClient {
         }
     }
 
-    private async handleStreamingResponse(streamedResponseString: string) {
+    this.handleStreamingResponse = async function(streamedResponseString: string): Promise<void> {
 
         if (!streamedResponseString) return;
 
@@ -345,7 +366,7 @@ export class IOStackClient {
         }
     }
 
-    private async handleUseCaseNotification(result: UseCaseNotificationPacket) {
+    this.handleUseCaseNotification = async function(result: UseCaseNotificationPacket): Promise<void> {
 
         switch (result.name) {
             case 'graph_active_node_change':
@@ -357,16 +378,16 @@ export class IOStackClient {
         }
     }
 
-    private async establishSession() {
+    this.establishSession = async function(): Promise<void> {
 
         console.log("Establishing session")
 
         const headers = new Headers();
         headers.append('Content-Type', 'application/json');
-        headers.set('Authorization', 'Bearer ' + this.getAccessKey());
+        headers.set('Authorization', 'Bearer ' + getAccessKey());
 
         const postBody = {
-            use_case_id: this.getAccessKey(),
+            use_case_id: getAccessKey(),
             client_data: this.use_case_data,
         };
 
@@ -391,7 +412,7 @@ export class IOStackClient {
             }
 
             const body = await response.json();
-            this.setRefreshToken(body.refresh_token);
+            setRefreshToken(body.refresh_token);
             this.session_id = body.session_id;
 
         } catch(e:any) {
@@ -406,7 +427,7 @@ export class IOStackClient {
 
     }
 
-    private async retrieveAccessToken() {
+    this.retrieveAccessToken = async function(): Promise<void> {
         
         console.log(`Retrieving access token for session ${this.session_id}`);
 
@@ -417,7 +438,7 @@ export class IOStackClient {
 
         const headers = new Headers();
         headers.append('Content-Type', 'application/json');
-        headers.set('Authorization', 'Bearer ' + this.getRefreshToken());
+        headers.set('Authorization', 'Bearer ' + getRefreshToken());
 
         const abortHandler = new IOStackAbortHandler(30 * 1000)
 
@@ -433,14 +454,14 @@ export class IOStackClient {
             )
 
             if (!response.ok) {
-                await this.reportError(response)
+                await reportError(response)
                 return
             }
 
             const body = await response.json();
 
-            this.setAccessToken(body.access_token)
-            this.calcAndSaveAccessTokenRefreshTime(body.access_token);
+            setAccessToken(body.access_token)
+            calcAndSaveAccessTokenRefreshTime(body.access_token);
     
         } catch(e:any) {
             this.reportErrorString(
@@ -454,7 +475,7 @@ export class IOStackClient {
 
     }
 
-    protected async refreshAccessToken() {
+    this.refreshAccessToken = async function(): Promise<void> {
 
         console.log(`Refreshing access token for session ${this.session_id}`);
 
@@ -465,7 +486,7 @@ export class IOStackClient {
 
         const headers = new Headers();
         headers.append('Content-Type', 'application/json');
-        headers.set('Authorization', 'Bearer ' + this.getRefreshToken());
+        headers.set('Authorization', 'Bearer ' + getRefreshToken());
 
         const abortHandler = new IOStackAbortHandler(30 * 1000)
 
@@ -481,14 +502,14 @@ export class IOStackClient {
             )
 
             if (!response.ok) {
-                await this.reportError(response)
+                await reportError(response)
                 return
             }
 
             const body = await response.json();
 
-            this.setAccessToken(body.access_token)
-            this.calcAndSaveAccessTokenRefreshTime(body.access_token);
+            setAccessToken(body.access_token)
+            calcAndSaveAccessTokenRefreshTime(body.access_token);
 
         } catch(e:any) {
             this.reportErrorString(
@@ -503,7 +524,7 @@ export class IOStackClient {
 
     }
 
-    private async retrieveUseCaseMetaData() {
+    this.retrieveUseCaseMetaData = async function(): Promise<void> {
 
         console.log('Fetching use case metadata');
 
@@ -523,7 +544,7 @@ export class IOStackClient {
             })
 
             if (!response.ok) {
-                await this.reportError(response)
+                await reportError(response)
                 return
             }
 
@@ -543,7 +564,7 @@ export class IOStackClient {
 
     }
 
-    private calcAndSaveAccessTokenRefreshTime(refresh_token: string) {
+    const calcAndSaveAccessTokenRefreshTime = function(refresh_token: string): void {
         const decoded = jwtDecode(refresh_token);
         if (!decoded.exp) {
             throw new Error("JWT missing exp claim")
@@ -554,56 +575,55 @@ export class IOStackClient {
             (expiryTime.getTime() - now) * 0.7
         );
         const refreshTime = new Date(now + refresh_access_token_period);
-        this.setAccessTokenRefreshTime(refreshTime);
+        setAccessTokenRefreshTime(refreshTime);
     }
 
-    private async handleStreamedFragment(fragment: StreamFragmentPacket) {
+    this.handleStreamedFragment = async function(fragment: StreamFragmentPacket): Promise<void> {
         this.streamFragmentHandlers.forEach(async h => {
             await h(fragment)
         })
     }
 
-    private async handleLLMStats(stats: LLMStatsPacket) {
+    this.handleLLMStats = async function(stats: LLMStatsPacket): Promise<void> {
         this.llmStatsHandlers.forEach(async h => {
             await h(stats)
         })
     }
 
-    private async handleError(error: string) {
+    this.handleError = async function(error: string): Promise<void> {
         this.errorHandlers.forEach(async h => {
             await h(error)
         })
     }
 
-    private async handleExternalUseCaseNotification(notification: UseCaseNotificationPacket) {
+    this.handleExternalUseCaseNotification = async function(notification: UseCaseNotificationPacket): Promise<void> {
         this.useCaseNotificationHandlers.forEach(async h => {
             await h(notification)
         })
     }
 
-    private async handleUseCaseStreamedReferenceNotification(notification: StreamedReferenceNotificationPacket) {
+    this.handleUseCaseStreamedReferenceNotification = async function(notification: StreamedReferenceNotificationPacket): Promise<void> {
         this.useCaseStreamedReferenceNotificationHandlers.forEach(async h => {
             await h(notification)
         })
     }
 
-    private async handleActiveNodeChange(notification: UseCaseActiveNodeChangeNotification) {
+    this.handleActiveNodeChange = async function(notification: UseCaseActiveNodeChangeNotification): Promise<void> {
         this.useCaseActiveNodeChangeNotificationHandlers.forEach(async h => {
             await h(notification)
         })
     }
 
-    protected async reportError(response: Response): Promise<void> {
+    this.reportError = async function(response: Response): Promise<void> {
         const error = await response.json();
         const errorText = `${response.statusText}:${error.message || error.detail}`;
-        this.handleError(errorText)
+        await this.handleError(errorText)
         // throw new Error(errorText);
     }
 
-    protected async reportErrorString(error: string, message: string): Promise<void> {
-        this.handleError(`${error} - ${message}`)
+    this.reportErrorString = async function(error: string, message: string): Promise<void> {
+        await this.handleError(`${error} - ${message}`)
         // throw new Error(`${error} - ${message}`);
     }
-
 
 }
