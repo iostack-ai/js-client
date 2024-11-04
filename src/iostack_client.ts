@@ -87,6 +87,9 @@ class IOStackAbortHandler {
 
 export interface IOStackClient {
 
+    platform_root:string;
+    stream_post_data_addenda:{};
+
     deregisterAllHandlers(): void;
     registerStreamFragmentHandler(h: StreamFragmentHandler): void;
     registerLLMStatsHandler(h: LLMStatsHandler): void;
@@ -101,11 +104,12 @@ export interface IOStackClient {
     startSession(): Promise<void>;
     sendMessageAndStreamResponse(message: string): Promise<void>;
 
+    reportError(response: Response): Promise<void>;
+
 }
 
 interface IOStackClientImplementation extends IOStackClient {
 
-    platform_root:string;
     use_case_data:{};
     session_id:string|null;
     streamFragmentHandlers:StreamFragmentHandler[];
@@ -114,7 +118,6 @@ interface IOStackClientImplementation extends IOStackClient {
     useCaseNotificationHandlers:UseCaseNoficationHandler[];
     useCaseActiveNodeChangeNotificationHandlers:UseCaseActiveNodeChangeNotificationHandler[];
     useCaseStreamedReferenceNotificationHandlers:StreamedReferenceNotificationHandler[];
-    stream_post_data_addenda:{};
     metadata_list:string[];
     decoder:TextDecoder;
     metadata:Record<string, any>|null;
@@ -137,7 +140,6 @@ interface IOStackClientImplementation extends IOStackClient {
     refreshAccessToken(): Promise<void>;
     retrieveUseCaseMetaData(): Promise<void>;
 
-    reportError(response: Response): Promise<void>;
     reportErrorString(error: string, message: string): Promise<void>;
 
 }

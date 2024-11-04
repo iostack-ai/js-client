@@ -44,6 +44,8 @@ type UseCaseNoficationHandler = (notification: UseCaseNotificationPacket) => Pro
 type UseCaseActiveNodeChangeNotificationHandler = (notification: UseCaseActiveNodeChangeNotification) => Promise<void>;
 type StreamedReferenceNotificationHandler = (notification: StreamedReferenceNotificationPacket) => Promise<void>;
 export interface IOStackClient {
+    platform_root: string;
+    stream_post_data_addenda: {};
     deregisterAllHandlers(): void;
     registerStreamFragmentHandler(h: StreamFragmentHandler): void;
     registerLLMStatsHandler(h: LLMStatsHandler): void;
@@ -55,6 +57,7 @@ export interface IOStackClient {
     getHeaders(): Promise<Headers>;
     startSession(): Promise<void>;
     sendMessageAndStreamResponse(message: string): Promise<void>;
+    reportError(response: Response): Promise<void>;
 }
 export type ClientConstructorArgs = {
     access_key: string;
