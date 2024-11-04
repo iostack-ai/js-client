@@ -41,6 +41,10 @@ export interface SessionStateUpdateNotificationPacket extends UseCaseNotificatio
     data: Record<string, any>;
 }
 
+export interface SnapshotSessionCreateNotificationPacket extends UseCaseNotificationPacket {
+    data: Record<string, any>;
+}
+
 export interface UseCaseActiveNodeChangePayload {
     active_node: string
     active_node_code: string
@@ -102,16 +106,18 @@ export interface IOStackClient {
 
     getHeaders(): Promise<Headers>;
     startSession(): Promise<void>;
+    startSessionFromSnapshot(): Promise<void>;
     sendMessageAndStreamResponse(message: string): Promise<void>;
 
     reportError(response: Response): Promise<void>;
 
 }
 
-export interface IOStackClientImplementation extends IOStackClient {
+interface IOStackClientImplementation extends IOStackClient {
 
     use_case_data:{};
     session_id:string|null;
+    snapshot_id:string|null;
     streamFragmentHandlers:StreamFragmentHandler[];
     llmStatsHandlers:LLMStatsHandler[];
     errorHandlers:ErrorHandler[];
@@ -123,6 +129,7 @@ export interface IOStackClientImplementation extends IOStackClient {
     metadata:Record<string, any>|null;
 
     establishSession(): Promise<void>;
+    establishSessionFromSnapshot(): Promise<void>;
     retrieveAccessToken(): Promise<void>;
 
     processMessage(message: ReadableStreamReadResult<Uint8Array>): Promise<void>;
@@ -148,7 +155,8 @@ export type ClientConstructorArgs = {
     access_key: string,
     use_case_data?: Record<string, any> | undefined,
     platform_root?: string | undefined,
-    metadata_list?: string[] | undefined
+    metadata_list?: string[] | undefined,
+    snapshot_id?:string| undefined
 }
 
 export function newIOStackClient(args: ClientConstructorArgs): IOStackClient {
@@ -163,6 +171,7 @@ function ClientConstructor (
     this.platform_root = args.platform_root || "https://platform.iostack.ai";
     this.use_case_data = args.use_case_data || {};
     this.session_id = null;
+    this.snapshot_id = args.snapshot_id || null;
     this.streamFragmentHandlers = [];
     this.llmStatsHandlers = [];
     this.errorHandlers = [];
@@ -236,17 +245,20 @@ function ClientConstructor (
 
         try {
 
-            await this.establishSession();
-            await this.retrieveAccessToken();
-
-            if(this.metadata_list.length == 0) {
+            if(this.snapshot_id) {
+                await this.establishSessionFromSnapshot();
+                await this.retrieveAccessToken();
+                this.snapshot_id = null
                 return
             }
 
-            await this.retrieveUseCaseMetaData();
-
-            if(this.metadata!.trigger_phrase){
-                await this.sendMessageAndStreamResponse(this.metadata!.trigger_phrase)   
+            await this.establishSession();
+            await this.retrieveAccessToken();
+            if(this.metadata_list.length > 0) {
+                await this.retrieveUseCaseMetaData();
+                if(this.metadata!.trigger_phrase){
+                    await this.sendMessageAndStreamResponse(this.metadata!.trigger_phrase)   
+                }
             }
 
         } finally {
@@ -425,6 +437,59 @@ function ClientConstructor (
         } catch(e:any) {
             this.reportErrorString(
                 'Error while establishing response',
+                e.toString()
+            );
+            throw e
+        } finally {
+            abortHandler.reset()
+        }
+
+    }
+
+    this.establishSessionFromSnapshot = async function(): Promise<void> {
+
+        console.log("Establishing session")
+
+        const headers = new Headers();
+        headers.append('Content-Type', 'application/json');
+        headers.set('Authorization', 'Bearer ' + getAccessKey());
+
+        const postBody = {
+            source_snapshot_id: this.snapshot_id
+        };
+
+        const url = this.platform_root + `/v1/use_case/snapshot/session`
+
+        const abortHandler = new IOStackAbortHandler(30 * 1000)
+
+        try {
+            const response = await fetch(
+                url,
+                {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(postBody),
+                    signal: abortHandler.getSignal()
+                }
+            )
+
+            if (!response.ok) {
+                await this.reportError(response)
+                return
+            }
+
+            const body = await response.json();
+            setRefreshToken(body.refresh_token);
+            this.session_id = body.response.session_id;
+
+            await this.handleUseCaseNotification({
+                name: "snapshot_session_created",
+                data: body.response
+            } as SnapshotSessionCreateNotificationPacket);
+
+        } catch(e:any) {
+            this.reportErrorString(
+                'Error while establishing session from snapshot',
                 e.toString()
             );
             throw e

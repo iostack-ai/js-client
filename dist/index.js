@@ -124,6 +124,7 @@ function ClientConstructor(args) {
     this.platform_root = args.platform_root || "https://platform.iostack.ai";
     this.use_case_data = args.use_case_data || {};
     this.session_id = null;
+    this.snapshot_id = args.snapshot_id || null;
     this.streamFragmentHandlers = [];
     this.llmStatsHandlers = [];
     this.errorHandlers = [];
@@ -184,14 +185,19 @@ function ClientConstructor(args) {
     this.startSession = function () {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                yield this.establishSession();
-                yield this.retrieveAccessToken();
-                if (this.metadata_list.length == 0) {
+                if (this.snapshot_id) {
+                    yield this.establishSessionFromSnapshot();
+                    yield this.retrieveAccessToken();
+                    this.snapshot_id = null;
                     return;
                 }
-                yield this.retrieveUseCaseMetaData();
-                if (this.metadata.trigger_phrase) {
-                    yield this.sendMessageAndStreamResponse(this.metadata.trigger_phrase);
+                yield this.establishSession();
+                yield this.retrieveAccessToken();
+                if (this.metadata_list.length > 0) {
+                    yield this.retrieveUseCaseMetaData();
+                    if (this.metadata.trigger_phrase) {
+                        yield this.sendMessageAndStreamResponse(this.metadata.trigger_phrase);
+                    }
                 }
             }
             finally {
@@ -329,6 +335,45 @@ function ClientConstructor(args) {
             }
             catch (e) {
                 this.reportErrorString('Error while establishing response', e.toString());
+                throw e;
+            }
+            finally {
+                abortHandler.reset();
+            }
+        });
+    };
+    this.establishSessionFromSnapshot = function () {
+        return __awaiter(this, void 0, void 0, function* () {
+            console.log("Establishing session");
+            const headers = new Headers();
+            headers.append('Content-Type', 'application/json');
+            headers.set('Authorization', 'Bearer ' + getAccessKey());
+            const postBody = {
+                source_snapshot_id: this.snapshot_id
+            };
+            const url = this.platform_root + `/v1/use_case/snapshot/session`;
+            const abortHandler = new IOStackAbortHandler(30 * 1000);
+            try {
+                const response = yield fetch(url, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(postBody),
+                    signal: abortHandler.getSignal()
+                });
+                if (!response.ok) {
+                    yield this.reportError(response);
+                    return;
+                }
+                const body = yield response.json();
+                setRefreshToken(body.refresh_token);
+                this.session_id = body.response.session_id;
+                yield this.handleUseCaseNotification({
+                    name: "snapshot_session_created",
+                    data: body.response
+                });
+            }
+            catch (e) {
+                this.reportErrorString('Error while establishing session from snapshot', e.toString());
                 throw e;
             }
             finally {

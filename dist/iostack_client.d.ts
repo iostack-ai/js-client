@@ -25,6 +25,9 @@ export interface StreamedReferenceNotificationPacket extends ClientNotificationP
 export interface SessionStateUpdateNotificationPacket extends UseCaseNotificationPacket {
     data: Record<string, any>;
 }
+export interface SnapshotSessionCreateNotificationPacket extends UseCaseNotificationPacket {
+    data: Record<string, any>;
+}
 export interface UseCaseActiveNodeChangePayload {
     active_node: string;
     active_node_code: string;
@@ -56,41 +59,16 @@ export interface IOStackClient {
     getTriggerPrompt(): string;
     getHeaders(): Promise<Headers>;
     startSession(): Promise<void>;
+    startSessionFromSnapshot(): Promise<void>;
     sendMessageAndStreamResponse(message: string): Promise<void>;
     reportError(response: Response): Promise<void>;
-}
-export interface IOStackClientImplementation extends IOStackClient {
-    use_case_data: {};
-    session_id: string | null;
-    streamFragmentHandlers: StreamFragmentHandler[];
-    llmStatsHandlers: LLMStatsHandler[];
-    errorHandlers: ErrorHandler[];
-    useCaseNotificationHandlers: UseCaseNoficationHandler[];
-    useCaseActiveNodeChangeNotificationHandlers: UseCaseActiveNodeChangeNotificationHandler[];
-    useCaseStreamedReferenceNotificationHandlers: StreamedReferenceNotificationHandler[];
-    metadata_list: string[];
-    decoder: TextDecoder;
-    metadata: Record<string, any> | null;
-    establishSession(): Promise<void>;
-    retrieveAccessToken(): Promise<void>;
-    processMessage(message: ReadableStreamReadResult<Uint8Array>): Promise<void>;
-    handleStreamingResponse(streamedResponseString: string): Promise<void>;
-    handleUseCaseNotification(result: UseCaseNotificationPacket): Promise<void>;
-    handleStreamedFragment(fragment: StreamFragmentPacket): Promise<void>;
-    handleLLMStats(stats: LLMStatsPacket): Promise<void>;
-    handleError(error: string): Promise<void>;
-    handleExternalUseCaseNotification(notification: UseCaseNotificationPacket): Promise<void>;
-    handleUseCaseStreamedReferenceNotification(notification: StreamedReferenceNotificationPacket): Promise<void>;
-    handleActiveNodeChange(notification: UseCaseActiveNodeChangeNotification): Promise<void>;
-    refreshAccessToken(): Promise<void>;
-    retrieveUseCaseMetaData(): Promise<void>;
-    reportErrorString(error: string, message: string): Promise<void>;
 }
 export type ClientConstructorArgs = {
     access_key: string;
     use_case_data?: Record<string, any> | undefined;
     platform_root?: string | undefined;
     metadata_list?: string[] | undefined;
+    snapshot_id?: string | undefined;
 };
 export declare function newIOStackClient(args: ClientConstructorArgs): IOStackClient;
 export {};
