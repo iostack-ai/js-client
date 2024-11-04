@@ -92,7 +92,6 @@ export class IOStackClient {
     private session_id: string | null;
     private metadata: any | null;
     private decoder: TextDecoder;
-    private allow_browser_to_manage_tokens: boolean;
     protected stream_post_data_addenda: Record<string, any>;
     private metadata_list: string[];
 
@@ -114,13 +113,11 @@ export class IOStackClient {
 
     constructor({
         access_key,
-        allow_browser_to_manage_tokens,
         use_case_data,
         platform_root,
         metadata_list
     } : {
         access_key: string,
-        allow_browser_to_manage_tokens: boolean,
         use_case_data?: Record<string, any> | undefined,
         platform_root?: string | undefined,
         metadata_list?: string[] | undefined
@@ -128,7 +125,6 @@ export class IOStackClient {
 
         this.platform_root = platform_root || "https://platform.iostack.ai";
         this.use_case_data = use_case_data || {};
-        this.allow_browser_to_manage_tokens = allow_browser_to_manage_tokens;
         this.session_id = null;
         this.metadata = null;
         this.streamFragmentHandlers = [];
@@ -155,15 +151,9 @@ export class IOStackClient {
         this.getRefreshToken = function () { return closure.refresh_token }
 
         this.setAccessToken = function (i) { 
-            if(this.allow_browser_to_manage_tokens){
-                throw new Error("Shouldn't be saving access token if the user has requested that the browser should handle it automatically")
-            }
             closure.access_token = i 
         }
         this.getAccessToken = function () { 
-            if(this.allow_browser_to_manage_tokens){
-                throw new Error("Shouldn't be retrieving access token if the user has requested that the browser should handle it automatically")
-            }
             return closure.access_token 
         }
 
@@ -241,10 +231,7 @@ export class IOStackClient {
         const headers = new Headers();
         
         headers.append('Content-Type', 'application/json');
-
-        if (!this.allow_browser_to_manage_tokens) {
-            headers.set('Authorization', 'Bearer ' + this.getAccessToken());
-        }
+        headers.set('Authorization', 'Bearer ' + this.getAccessToken());
 
         return headers
     }
@@ -279,7 +266,6 @@ export class IOStackClient {
                 method: 'POST',
                 headers: headers,
                 body: JSON.stringify(postBody),
-                credentials: !this.allow_browser_to_manage_tokens ? 'omit' : 'include',
                 signal:abortHandler.getSignal()
             });
 
@@ -395,7 +381,6 @@ export class IOStackClient {
                     method: 'POST',
                     headers: headers,
                     body: JSON.stringify(postBody),
-                    credentials: 'include',
                     signal: abortHandler.getSignal()
                 }
             )
@@ -442,10 +427,7 @@ export class IOStackClient {
                 {
                     method: 'POST',
                     headers: headers,
-                    body: JSON.stringify({
-                        include_http_only_cookie: this.allow_browser_to_manage_tokens
-                    }),
-                    credentials: 'include',
+                    body: "{}",
                     signal: abortHandler.getSignal()
                 }
             )
@@ -457,9 +439,7 @@ export class IOStackClient {
 
             const body = await response.json();
 
-            if(!this.allow_browser_to_manage_tokens) {
-                this.setAccessToken(body.access_token)
-            }
+            this.setAccessToken(body.access_token)
             this.calcAndSaveAccessTokenRefreshTime(body.access_token);
     
         } catch(e:any) {
@@ -495,10 +475,7 @@ export class IOStackClient {
                 {
                     method: 'POST',
                     headers: headers,
-                    body: JSON.stringify({
-                        include_http_only_cookie: this.allow_browser_to_manage_tokens
-                    }),
-                    credentials: 'include',
+                    body: "{}",
                     signal:abortHandler.getSignal()
                 }
             )
@@ -510,9 +487,7 @@ export class IOStackClient {
 
             const body = await response.json();
 
-            if(!this.allow_browser_to_manage_tokens) {
-                this.setAccessToken(body.access_token)
-            }
+            this.setAccessToken(body.access_token)
             this.calcAndSaveAccessTokenRefreshTime(body.access_token);
 
         } catch(e:any) {
@@ -548,7 +523,6 @@ export class IOStackClient {
             const response = await fetch(url, {
                 method: 'GET',
                 headers: headers,
-                credentials: 'include',
                 signal:abortHandler.getSignal()
             })
 

@@ -49,7 +49,6 @@ export declare class IOStackClient {
     private session_id;
     private metadata;
     private decoder;
-    private allow_browser_to_manage_tokens;
     protected stream_post_data_addenda: Record<string, any>;
     private metadata_list;
     private streamFragmentHandlers;
@@ -65,9 +64,8 @@ export declare class IOStackClient {
     private getAccessKey;
     private setAccessTokenRefreshTime;
     protected accessTokenExpired: () => boolean;
-    constructor({ access_key, allow_browser_to_manage_tokens, use_case_data, platform_root, metadata_list }: {
+    constructor({ access_key, use_case_data, platform_root, metadata_list }: {
         access_key: string;
-        allow_browser_to_manage_tokens: boolean;
         use_case_data?: Record<string, any> | undefined;
         platform_root?: string | undefined;
         metadata_list?: string[] | undefined;

@@ -118,10 +118,9 @@ class IOStackAbortHandler {
     }
 }
 class IOStackClient {
-    constructor({ access_key, allow_browser_to_manage_tokens, use_case_data, platform_root, metadata_list }) {
+    constructor({ access_key, use_case_data, platform_root, metadata_list }) {
         this.platform_root = platform_root || "https://platform.iostack.ai";
         this.use_case_data = use_case_data || {};
-        this.allow_browser_to_manage_tokens = allow_browser_to_manage_tokens;
         this.session_id = null;
         this.metadata = null;
         this.streamFragmentHandlers = [];
@@ -143,15 +142,9 @@ class IOStackClient {
         this.setRefreshToken = function (i) { closure.refresh_token = i; };
         this.getRefreshToken = function () { return closure.refresh_token; };
         this.setAccessToken = function (i) {
-            if (this.allow_browser_to_manage_tokens) {
-                throw new Error("Shouldn't be saving access token if the user has requested that the browser should handle it automatically");
-            }
             closure.access_token = i;
         };
         this.getAccessToken = function () {
-            if (this.allow_browser_to_manage_tokens) {
-                throw new Error("Shouldn't be retrieving access token if the user has requested that the browser should handle it automatically");
-            }
             return closure.access_token;
         };
         this.getAccessKey = function () { return closure.access_key; };
@@ -211,9 +204,7 @@ class IOStackClient {
     getHeaders() {
         const headers = new Headers();
         headers.append('Content-Type', 'application/json');
-        if (!this.allow_browser_to_manage_tokens) {
-            headers.set('Authorization', 'Bearer ' + this.getAccessToken());
-        }
+        headers.set('Authorization', 'Bearer ' + this.getAccessToken());
         return headers;
     }
     sendMessageAndStreamResponse(message) {
@@ -236,7 +227,6 @@ class IOStackClient {
                     method: 'POST',
                     headers: headers,
                     body: JSON.stringify(postBody),
-                    credentials: !this.allow_browser_to_manage_tokens ? 'omit' : 'include',
                     signal: abortHandler.getSignal()
                 });
                 if (!response.ok || !response.body) {
@@ -327,7 +317,6 @@ class IOStackClient {
                     method: 'POST',
                     headers: headers,
                     body: JSON.stringify(postBody),
-                    credentials: 'include',
                     signal: abortHandler.getSignal()
                 });
                 if (!response.ok) {
@@ -362,10 +351,7 @@ class IOStackClient {
                 const response = yield fetch(this.platform_root + `/v1/use_case/session/${this.session_id}/access_token`, {
                     method: 'POST',
                     headers: headers,
-                    body: JSON.stringify({
-                        include_http_only_cookie: this.allow_browser_to_manage_tokens
-                    }),
-                    credentials: 'include',
+                    body: "{}",
                     signal: abortHandler.getSignal()
                 });
                 if (!response.ok) {
@@ -373,9 +359,7 @@ class IOStackClient {
                     return;
                 }
                 const body = yield response.json();
-                if (!this.allow_browser_to_manage_tokens) {
-                    this.setAccessToken(body.access_token);
-                }
+                this.setAccessToken(body.access_token);
                 this.calcAndSaveAccessTokenRefreshTime(body.access_token);
             }
             catch (e) {
@@ -402,10 +386,7 @@ class IOStackClient {
                 const response = yield fetch(this.platform_root + `/v1/use_case/session/${this.session_id}/access_token`, {
                     method: 'POST',
                     headers: headers,
-                    body: JSON.stringify({
-                        include_http_only_cookie: this.allow_browser_to_manage_tokens
-                    }),
-                    credentials: 'include',
+                    body: "{}",
                     signal: abortHandler.getSignal()
                 });
                 if (!response.ok) {
@@ -413,9 +394,7 @@ class IOStackClient {
                     return;
                 }
                 const body = yield response.json();
-                if (!this.allow_browser_to_manage_tokens) {
-                    this.setAccessToken(body.access_token);
-                }
+                this.setAccessToken(body.access_token);
                 this.calcAndSaveAccessTokenRefreshTime(body.access_token);
             }
             catch (e) {
@@ -442,7 +421,6 @@ class IOStackClient {
                 const response = yield fetch(url, {
                     method: 'GET',
                     headers: headers,
-                    credentials: 'include',
                     signal: abortHandler.getSignal()
                 });
                 if (!response.ok) {
