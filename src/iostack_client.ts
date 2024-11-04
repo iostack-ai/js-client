@@ -87,6 +87,24 @@ class IOStackAbortHandler {
 
 export interface IOStackClient {
 
+    deregisterAllHandlers(): void;
+    registerStreamFragmentHandler(h: StreamFragmentHandler): void;
+    registerLLMStatsHandler(h: LLMStatsHandler): void;
+    registerErrorHandler(h: ErrorHandler): void;
+    registerUseCaseNotificationHandler(h: UseCaseNoficationHandler): void;
+    registerUseCaseStreamReferenceNotificationHandler(h: StreamedReferenceNotificationHandler): void;
+    registerUseCaseActiveNodeChangeNotificationHandler(h: UseCaseActiveNodeChangeNotificationHandler): void;
+
+    getTriggerPrompt(): string;
+
+    getHeaders(): Promise<Headers>;
+    startSession(): Promise<void>;
+    sendMessageAndStreamResponse(message: string): Promise<void>;
+
+}
+
+interface IOStackClientImplementation extends IOStackClient {
+
     platform_root:string;
     use_case_data:{};
     session_id:string|null;
@@ -101,21 +119,8 @@ export interface IOStackClient {
     decoder:TextDecoder;
     metadata:Record<string, any>|null;
 
-    deregisterAllHandlers(): void;
-    registerStreamFragmentHandler(h: StreamFragmentHandler): void;
-    registerLLMStatsHandler(h: LLMStatsHandler): void;
-    registerErrorHandler(h: ErrorHandler): void;
-    registerUseCaseNotificationHandler(h: UseCaseNoficationHandler): void;
-    registerUseCaseStreamReferenceNotificationHandler(h: StreamedReferenceNotificationHandler): void;
-    registerUseCaseActiveNodeChangeNotificationHandler(h: UseCaseActiveNodeChangeNotificationHandler): void;
-    getTriggerPrompt(): string;
-
-    getHeaders(): Promise<Headers>;
-    startSession(): Promise<void>;
     establishSession(): Promise<void>;
     retrieveAccessToken(): Promise<void>;
-
-    sendMessageAndStreamResponse(message: string): Promise<void>;
 
     processMessage(message: ReadableStreamReadResult<Uint8Array>): Promise<void>;
 
@@ -144,12 +149,12 @@ export type ClientConstructorArgs = {
     metadata_list?: string[] | undefined
 }
 
-export function makeIOStackClient(args: ClientConstructorArgs): IOStackClient {
-    return new (Client as any).clientConstructor(args)
+export function newIOStackClient(args: ClientConstructorArgs): IOStackClient {
+    return new (ClientConstructor as any)(args)
 }
 
-function Client (
-    this: IOStackClient,
+function ClientConstructor (
+    this: IOStackClientImplementation,
     args : ClientConstructorArgs
 ) {
 

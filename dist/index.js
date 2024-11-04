@@ -90,7 +90,7 @@ module.exports = __WEBPACK_EXTERNAL_MODULE__372__;
 var __webpack_exports__ = {};
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   makeIOStackClient: () => (/* binding */ makeIOStackClient)
+/* harmony export */   newIOStackClient: () => (/* binding */ newIOStackClient)
 /* harmony export */ });
 /* harmony import */ var jwt_decode__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(372);
 /* harmony import */ var jwt_decode__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(jwt_decode__WEBPACK_IMPORTED_MODULE_0__);
@@ -117,10 +117,10 @@ class IOStackAbortHandler {
         clearTimeout(this.timeoutId);
     }
 }
-function makeIOStackClient(args) {
-    return new Client.clientConstructor(args);
+function newIOStackClient(args) {
+    return new ClientConstructor(args);
 }
-function Client(args) {
+function ClientConstructor(args) {
     this.platform_root = args.platform_root || "https://platform.iostack.ai";
     this.use_case_data = args.use_case_data || {};
     this.session_id = null;
