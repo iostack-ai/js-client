@@ -124,7 +124,6 @@ function ClientConstructor(args) {
     this.platform_root = args.platform_root || "https://platform.iostack.ai";
     this.use_case_data = args.use_case_data || {};
     this.session_id = null;
-    this.snapshot_id = args.snapshot_id || null;
     this.streamFragmentHandlers = [];
     this.llmStatsHandlers = [];
     this.errorHandlers = [];
@@ -182,35 +181,6 @@ function ClientConstructor(args) {
         }
         return this.metadata.trigger_phrase;
     };
-    this.startSession = function () {
-        return __awaiter(this, void 0, void 0, function* () {
-            try {
-                if (this.snapshot_id) {
-                    const data = yield this.establishSessionFromSnapshot();
-                    this.snapshot_id = null;
-                    if (!data)
-                        return;
-                    yield this.retrieveAccessToken();
-                    if (this.metadata_list.length > 0) {
-                        yield this.retrieveUseCaseMetaData();
-                    }
-                    yield this.handleUseCaseNotification(data);
-                    return;
-                }
-                yield this.establishSession();
-                yield this.retrieveAccessToken();
-                if (this.metadata_list.length > 0) {
-                    yield this.retrieveUseCaseMetaData();
-                    if (this.metadata.trigger_phrase) {
-                        yield this.sendMessageAndStreamResponse(this.metadata.trigger_phrase);
-                    }
-                }
-            }
-            finally {
-                // All errors and exceptions should have been reported via the callback
-            }
-        });
-    };
     this.getHeaders = function () {
         return __awaiter(this, void 0, void 0, function* () {
             if (accessTokenExpired()) {
@@ -220,47 +190,6 @@ function ClientConstructor(args) {
             headers.append('Content-Type', 'application/json');
             headers.set('Authorization', 'Bearer ' + getAccessToken());
             return headers;
-        });
-    };
-    this.sendMessageAndStreamResponse = function (message) {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (!message) {
-                return;
-            }
-            if (!this.session_id) {
-                this.reportErrorString("Error sending message", "Session has not yet been established");
-                return;
-            }
-            const headers = yield this.getHeaders();
-            const postBody = Object.assign({ message: message }, this.stream_post_data_addenda);
-            const abortHandler = new IOStackAbortHandler(60 * 1000);
-            try {
-                const response = yield fetch(this.platform_root + `/v1/use_case/session/${this.session_id}/stream`, {
-                    method: 'POST',
-                    headers: headers,
-                    body: JSON.stringify(postBody),
-                    signal: abortHandler.getSignal()
-                });
-                if (!response.ok || !response.body) {
-                    yield this.reportError(response);
-                    return;
-                }
-                const reader = response.body.getReader();
-                const lambda = (message) => __awaiter(this, void 0, void 0, function* () {
-                    if (message.done) {
-                        return;
-                    }
-                    yield this.processMessage(message);
-                    return reader.read().then(lambda);
-                });
-                yield reader.read().then(lambda);
-            }
-            catch (e) {
-                this.reportErrorString('Error while initiating streaming response', e.toString());
-            }
-            finally {
-                abortHandler.reset();
-            }
         });
     };
     this.processMessage = function (message) {
@@ -341,45 +270,6 @@ function ClientConstructor(args) {
             }
             catch (e) {
                 this.reportErrorString('Error while establishing response', e.toString());
-                throw e;
-            }
-            finally {
-                abortHandler.reset();
-            }
-        });
-    };
-    this.establishSessionFromSnapshot = function () {
-        return __awaiter(this, void 0, void 0, function* () {
-            console.log("Establishing session");
-            const headers = new Headers();
-            headers.append('Content-Type', 'application/json');
-            headers.set('Authorization', 'Bearer ' + getAccessKey());
-            const postBody = {
-                source_snapshot_id: this.snapshot_id
-            };
-            const url = this.platform_root + `/v1/use_case/snapshot/session`;
-            const abortHandler = new IOStackAbortHandler(30 * 1000);
-            try {
-                const response = yield fetch(url, {
-                    method: 'POST',
-                    headers: headers,
-                    body: JSON.stringify(postBody),
-                    signal: abortHandler.getSignal()
-                });
-                if (!response.ok) {
-                    yield this.reportError(response);
-                    return null;
-                }
-                const body = yield response.json();
-                setRefreshToken(body.refresh_token);
-                this.session_id = body.response.session_id;
-                return {
-                    name: "snapshot_session_created",
-                    data: body.response
-                };
-            }
-            catch (e) {
-                this.reportErrorString('Error while establishing session from snapshot', e.toString());
                 throw e;
             }
             finally {
@@ -555,6 +445,64 @@ function ClientConstructor(args) {
         });
     };
 }
+ClientConstructor.prototype.startSession = function () {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            yield this.establishSession();
+            yield this.retrieveAccessToken();
+            if (this.metadata_list.length > 0) {
+                yield this.retrieveUseCaseMetaData();
+                if (this.metadata.trigger_phrase) {
+                    yield this.sendMessageAndStreamResponse(this.metadata.trigger_phrase);
+                }
+            }
+        }
+        finally {
+            // All errors and exceptions should have been reported via the callback
+        }
+    });
+};
+ClientConstructor.prototype.sendMessageAndStreamResponse = function (message) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (!message) {
+            return;
+        }
+        if (!this.session_id) {
+            this.reportErrorString("Error sending message", "Session has not yet been established");
+            return;
+        }
+        const headers = yield this.getHeaders();
+        const postBody = Object.assign({ message: message }, this.stream_post_data_addenda);
+        const abortHandler = new IOStackAbortHandler(60 * 1000);
+        try {
+            const response = yield fetch(this.platform_root + `/v1/use_case/session/${this.session_id}/stream`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(postBody),
+                signal: abortHandler.getSignal()
+            });
+            if (!response.ok || !response.body) {
+                yield this.reportError(response);
+                return;
+            }
+            const reader = response.body.getReader();
+            const lambda = (message) => __awaiter(this, void 0, void 0, function* () {
+                if (message.done) {
+                    return;
+                }
+                yield this.processMessage(message);
+                return reader.read().then(lambda);
+            });
+            yield reader.read().then(lambda);
+        }
+        catch (e) {
+            this.reportErrorString('Error while initiating streaming response', e.toString());
+        }
+        finally {
+            abortHandler.reset();
+        }
+    });
+};
 
 /******/ 	return __webpack_exports__;
 /******/ })()

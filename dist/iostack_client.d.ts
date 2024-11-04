@@ -25,9 +25,6 @@ export interface StreamedReferenceNotificationPacket extends ClientNotificationP
 export interface SessionStateUpdateNotificationPacket extends UseCaseNotificationPacket {
     data: Record<string, any>;
 }
-export interface SnapshotSessionCreateNotificationPacket extends UseCaseNotificationPacket {
-    data: Record<string, any>;
-}
 export interface UseCaseActiveNodeChangePayload {
     active_node: string;
     active_node_code: string;
@@ -47,8 +44,6 @@ type UseCaseNoficationHandler = (notification: UseCaseNotificationPacket) => Pro
 type UseCaseActiveNodeChangeNotificationHandler = (notification: UseCaseActiveNodeChangeNotification) => Promise<void>;
 type StreamedReferenceNotificationHandler = (notification: StreamedReferenceNotificationPacket) => Promise<void>;
 export interface IOStackClient {
-    platform_root: string;
-    stream_post_data_addenda: {};
     deregisterAllHandlers(): void;
     registerStreamFragmentHandler(h: StreamFragmentHandler): void;
     registerLLMStatsHandler(h: LLMStatsHandler): void;
@@ -57,7 +52,6 @@ export interface IOStackClient {
     registerUseCaseStreamReferenceNotificationHandler(h: StreamedReferenceNotificationHandler): void;
     registerUseCaseActiveNodeChangeNotificationHandler(h: UseCaseActiveNodeChangeNotificationHandler): void;
     getTriggerPrompt(): string;
-    getHeaders(): Promise<Headers>;
     startSession(): Promise<void>;
     sendMessageAndStreamResponse(message: string): Promise<void>;
     reportError(response: Response): Promise<void>;
@@ -67,7 +61,6 @@ export type ClientConstructorArgs = {
     use_case_data?: Record<string, any> | undefined;
     platform_root?: string | undefined;
     metadata_list?: string[] | undefined;
-    snapshot_id?: string | undefined;
 };
 export declare function newIOStackClient(args: ClientConstructorArgs): IOStackClient;
 export {};

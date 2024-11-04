@@ -41,10 +41,6 @@ export interface SessionStateUpdateNotificationPacket extends UseCaseNotificatio
     data: Record<string, any>;
 }
 
-export interface SnapshotSessionCreateNotificationPacket extends UseCaseNotificationPacket {
-    data: Record<string, any>;
-}
-
 export interface UseCaseActiveNodeChangePayload {
     active_node: string
     active_node_code: string
@@ -91,9 +87,6 @@ class IOStackAbortHandler {
 
 export interface IOStackClient {
 
-    platform_root:string;
-    stream_post_data_addenda:{};
-
     deregisterAllHandlers(): void;
     registerStreamFragmentHandler(h: StreamFragmentHandler): void;
     registerLLMStatsHandler(h: LLMStatsHandler): void;
@@ -104,7 +97,6 @@ export interface IOStackClient {
 
     getTriggerPrompt(): string;
 
-    getHeaders(): Promise<Headers>;
     startSession(): Promise<void>;
     sendMessageAndStreamResponse(message: string): Promise<void>;
 
@@ -114,9 +106,11 @@ export interface IOStackClient {
 
 interface IOStackClientImplementation extends IOStackClient {
 
+    platform_root:string;
+    stream_post_data_addenda:{};
+
     use_case_data:{};
     session_id:string|null;
-    snapshot_id:string|null;
     streamFragmentHandlers:StreamFragmentHandler[];
     llmStatsHandlers:LLMStatsHandler[];
     errorHandlers:ErrorHandler[];
@@ -127,8 +121,9 @@ interface IOStackClientImplementation extends IOStackClient {
     decoder:TextDecoder;
     metadata:Record<string, any>|null;
 
+    getHeaders(): Promise<Headers>;
+
     establishSession(): Promise<void>;
-    establishSessionFromSnapshot(): Promise<SnapshotSessionCreateNotificationPacket|null>;
     retrieveAccessToken(): Promise<void>;
 
     processMessage(message: ReadableStreamReadResult<Uint8Array>): Promise<void>;
@@ -154,8 +149,7 @@ export type ClientConstructorArgs = {
     access_key: string,
     use_case_data?: Record<string, any> | undefined,
     platform_root?: string | undefined,
-    metadata_list?: string[] | undefined,
-    snapshot_id?:string| undefined
+    metadata_list?: string[] | undefined
 }
 
 export function newIOStackClient(args: ClientConstructorArgs): IOStackClient {
@@ -170,7 +164,6 @@ function ClientConstructor (
     this.platform_root = args.platform_root || "https://platform.iostack.ai";
     this.use_case_data = args.use_case_data || {};
     this.session_id = null;
-    this.snapshot_id = args.snapshot_id || null;
     this.streamFragmentHandlers = [];
     this.llmStatsHandlers = [];
     this.errorHandlers = [];
@@ -240,39 +233,6 @@ function ClientConstructor (
         return this.metadata.trigger_phrase
     }
 
-    this.startSession = async function() {
-
-        try {
-
-            if(this.snapshot_id) {
-
-                const data = await this.establishSessionFromSnapshot();
-                this.snapshot_id = null
-
-                if(!data) return
-                
-                await this.retrieveAccessToken();
-                if(this.metadata_list.length > 0) {
-                    await this.retrieveUseCaseMetaData();
-                }
-                await this.handleUseCaseNotification(data)                
-                return
-            }
-
-            await this.establishSession();
-            await this.retrieveAccessToken();
-            if(this.metadata_list.length > 0) {
-                await this.retrieveUseCaseMetaData();
-                if(this.metadata!.trigger_phrase){
-                    await this.sendMessageAndStreamResponse(this.metadata!.trigger_phrase)   
-                }
-            }
-
-        } finally {
-            // All errors and exceptions should have been reported via the callback
-        }
-    }
-
     this.getHeaders = async function(): Promise<Headers> {
 
         if (accessTokenExpired()) {
@@ -285,63 +245,6 @@ function ClientConstructor (
         headers.set('Authorization', 'Bearer ' + getAccessToken());
 
         return headers
-    }
-
-    this.sendMessageAndStreamResponse = async function(message: string): Promise<void> {
-
-        if(!message) {
-            return
-        }
-
-        if(!this.session_id) {
-            this.reportErrorString("Error sending message", "Session has not yet been established")
-            return
-        }
-
-        const headers = await this.getHeaders();
-
-        const postBody = {
-            message: message,
-            ...this.stream_post_data_addenda
-        };
-
-        const abortHandler = new IOStackAbortHandler(60 * 1000)
-
-        try {
-
-            const response: Response = await fetch(this.platform_root + `/v1/use_case/session/${this.session_id}/stream`, {
-                method: 'POST',
-                headers: headers,
-                body: JSON.stringify(postBody),
-                signal:abortHandler.getSignal()
-            });
-
-            if (!response.ok || !response.body) {
-                await this.reportError(response);
-                return;
-            }
-
-            const reader: ReadableStreamDefaultReader<Uint8Array> = response.body.getReader();
-
-            const lambda = async (message: ReadableStreamReadResult<Uint8Array>): Promise<void> => {
-                if (message.done) {
-                    return;
-                }
-
-                await this.processMessage(message);
-                return reader.read().then(lambda);
-            };
-
-            await reader.read().then(lambda);
-
-        } catch (e:any) {
-            this.reportErrorString(
-                'Error while initiating streaming response',
-                e.toString()
-            );
-        } finally {
-            abortHandler.reset()
-        }
     }
 
     this.processMessage = async function(message: ReadableStreamReadResult<Uint8Array>): Promise<void> {
@@ -453,58 +356,7 @@ function ClientConstructor (
 
     }
 
-    this.establishSessionFromSnapshot = async function(): Promise<SnapshotSessionCreateNotificationPacket|null> {
 
-        console.log("Establishing session")
-
-        const headers = new Headers();
-        headers.append('Content-Type', 'application/json');
-        headers.set('Authorization', 'Bearer ' + getAccessKey());
-
-        const postBody = {
-            source_snapshot_id: this.snapshot_id
-        };
-
-        const url = this.platform_root + `/v1/use_case/snapshot/session`
-
-        const abortHandler = new IOStackAbortHandler(30 * 1000)
-
-        try {
-            const response = await fetch(
-                url,
-                {
-                    method: 'POST',
-                    headers: headers,
-                    body: JSON.stringify(postBody),
-                    signal: abortHandler.getSignal()
-                }
-            )
-
-            if (!response.ok) {
-                await this.reportError(response)
-                return null
-            }
-
-            const body = await response.json();
-            setRefreshToken(body.refresh_token);
-            this.session_id = body.response.session_id;
-
-            return {
-                name: "snapshot_session_created",
-                data: body.response
-            } as SnapshotSessionCreateNotificationPacket;
-
-        } catch(e:any) {
-            this.reportErrorString(
-                'Error while establishing session from snapshot',
-                e.toString()
-            );
-            throw e
-        } finally {
-            abortHandler.reset()
-        }
-
-    }
 
     this.retrieveAccessToken = async function(): Promise<void> {
         
@@ -706,3 +558,78 @@ function ClientConstructor (
     }
 
 }
+
+ClientConstructor.prototype.startSession = async function() {
+
+    try {
+        await this.establishSession();
+        await this.retrieveAccessToken();
+        if(this.metadata_list.length > 0) {
+            await this.retrieveUseCaseMetaData();
+            if(this.metadata!.trigger_phrase){
+                await this.sendMessageAndStreamResponse(this.metadata!.trigger_phrase)   
+            }
+        }
+    } finally {
+        // All errors and exceptions should have been reported via the callback
+    }
+}
+
+ClientConstructor.prototype.sendMessageAndStreamResponse = async function(message: string): Promise<void> {
+
+    if(!message) {
+        return
+    }
+
+    if(!this.session_id) {
+        this.reportErrorString("Error sending message", "Session has not yet been established")
+        return
+    }
+
+    const headers = await this.getHeaders();
+
+    const postBody = {
+        message: message,
+        ...this.stream_post_data_addenda
+    };
+
+    const abortHandler = new IOStackAbortHandler(60 * 1000)
+
+    try {
+
+        const response: Response = await fetch(this.platform_root + `/v1/use_case/session/${this.session_id}/stream`, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(postBody),
+            signal:abortHandler.getSignal()
+        });
+
+        if (!response.ok || !response.body) {
+            await this.reportError(response);
+            return;
+        }
+
+        const reader: ReadableStreamDefaultReader<Uint8Array> = response.body.getReader();
+
+        const lambda = async (message: ReadableStreamReadResult<Uint8Array>): Promise<void> => {
+            if (message.done) {
+                return;
+            }
+
+            await this.processMessage(message);
+            return reader.read().then(lambda);
+        };
+
+        await reader.read().then(lambda);
+
+    } catch (e:any) {
+        this.reportErrorString(
+            'Error while initiating streaming response',
+            e.toString()
+        );
+    } finally {
+        abortHandler.reset()
+    }
+}
+
+
