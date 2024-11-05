@@ -141,7 +141,8 @@ function IOStackClientConstructor(args) {
         refresh_token: "",
         access_token: "",
         access_key: args.access_key,
-        access_token_refresh_time: new Date(0)
+        access_token_refresh_time: new Date(0),
+        refresh_token_refresh_time: new Date(0)
     };
     const setRefreshToken = function (i) { closure.refresh_token = i; };
     const getRefreshToken = function () { return closure.refresh_token; };
@@ -150,8 +151,11 @@ function IOStackClientConstructor(args) {
     const getAccessKey = function () { return closure.access_key; };
     const setAccessTokenRefreshTime = function (i) { closure.access_token_refresh_time = i; };
     const accessTokenExpired = function () { return !!closure.access_token_refresh_time && new Date(Date.now()) >= closure.access_token_refresh_time; };
+    const setRefreshTokenRefreshTime = function (i) { closure.refresh_token_refresh_time = i; };
+    const refreshTokenExpired = function () { return !!closure.refresh_token_refresh_time && new Date(Date.now()) >= closure.refresh_token_refresh_time; };
     this.setRefreshToken = function (i) {
         setRefreshToken(i);
+        calcAndSaveRefreshTokenRefreshTime(i);
     };
     this.deregisterAllHandlers = function () {
         this.streamFragmentHandlers = [];
@@ -188,6 +192,9 @@ function IOStackClientConstructor(args) {
     };
     this.getHeaders = function () {
         return __awaiter(this, void 0, void 0, function* () {
+            if (refreshTokenExpired()) {
+                yield this.refreshRefreshToken();
+            }
             if (accessTokenExpired()) {
                 yield this.refreshAccessToken();
             }
@@ -270,7 +277,7 @@ function IOStackClientConstructor(args) {
                     return;
                 }
                 const body = yield response.json();
-                setRefreshToken(body.refresh_token);
+                this.setRefreshToken(body.refresh_token);
                 this.session_id = body.session_id;
             }
             catch (e) {
@@ -352,6 +359,45 @@ function IOStackClientConstructor(args) {
             }
         });
     };
+    this.refreshRefreshToken = function () {
+        return __awaiter(this, void 0, void 0, function* () {
+            console.log(`Refreshing refresh token for session ${this.session_id}`);
+            if (!this.session_id) {
+                this.reportErrorString("Error refreshing refresh token", "Session has not yet been established");
+                return;
+            }
+            const headers = new Headers();
+            headers.append('Content-Type', 'application/json');
+            headers.set('Authorization', 'Bearer ' + getAccessKey());
+            const postBody = {
+                use_case_id: getAccessKey(),
+                client_data: this.use_case_data,
+            };
+            const url = this.platform_root + `/v1/use_case/session/${this.session_id}/refresh_token`;
+            const abortHandler = new IOStackAbortHandler(30 * 1000);
+            try {
+                const response = yield fetch(url, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(postBody),
+                    signal: abortHandler.getSignal()
+                });
+                if (!response.ok) {
+                    yield this.reportError(response);
+                    return;
+                }
+                const body = yield response.json();
+                this.setRefreshToken(body.refresh_token);
+            }
+            catch (e) {
+                this.reportErrorString('Error while refreshing session refresh token', e.toString());
+                throw e;
+            }
+            finally {
+                abortHandler.reset();
+            }
+        });
+    };
     this.retrieveUseCaseMetaData = function () {
         return __awaiter(this, void 0, void 0, function* () {
             console.log('Fetching use case metadata');
@@ -382,16 +428,27 @@ function IOStackClientConstructor(args) {
             }
         });
     };
-    const calcAndSaveAccessTokenRefreshTime = function (refresh_token) {
-        const decoded = (0,jwt_decode__WEBPACK_IMPORTED_MODULE_0__.jwtDecode)(refresh_token);
+    const calcAndSaveAccessTokenRefreshTime = function (access_token) {
+        const decoded = (0,jwt_decode__WEBPACK_IMPORTED_MODULE_0__.jwtDecode)(access_token);
         if (!decoded.exp) {
-            throw new Error("JWT missing exp claim");
+            throw new Error("Access Token JWT missing exp claim");
         }
         const expiryTime = new Date(decoded.exp * 1000);
         const now = Date.now();
         const refresh_access_token_period = Math.floor((expiryTime.getTime() - now) * 0.7);
         const refreshTime = new Date(now + refresh_access_token_period);
         setAccessTokenRefreshTime(refreshTime);
+    };
+    const calcAndSaveRefreshTokenRefreshTime = function (refresh_token) {
+        const decoded = (0,jwt_decode__WEBPACK_IMPORTED_MODULE_0__.jwtDecode)(refresh_token);
+        if (!decoded.exp) {
+            throw new Error("Refresh Token JWT missing exp claim");
+        }
+        const expiryTime = new Date(decoded.exp * 1000);
+        const now = Date.now();
+        const refresh_refresh_token_period = Math.floor((expiryTime.getTime() - now) * 0.7);
+        const refreshTime = new Date(now + refresh_refresh_token_period);
+        setRefreshTokenRefreshTime(refreshTime);
     };
     this.handleStreamedFragment = function (fragment) {
         return __awaiter(this, void 0, void 0, function* () {

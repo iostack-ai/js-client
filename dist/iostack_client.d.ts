@@ -90,6 +90,7 @@ export interface IOStackClient {
     handleUseCaseStreamedReferenceNotification(notification: StreamedReferenceNotificationPacket): Promise<void>;
     handleActiveNodeChange(notification: UseCaseActiveNodeChangeNotification): Promise<void>;
     refreshAccessToken(): Promise<void>;
+    refreshRefreshToken(): Promise<void>;
     retrieveUseCaseMetaData(): Promise<void>;
     reportErrorString(error: string, message: string): Promise<void>;
 }
