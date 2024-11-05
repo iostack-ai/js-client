@@ -43,6 +43,14 @@ type ErrorHandler = (error: string) => Promise<void>;
 type UseCaseNoficationHandler = (notification: UseCaseNotificationPacket) => Promise<void>;
 type UseCaseActiveNodeChangeNotificationHandler = (notification: UseCaseActiveNodeChangeNotification) => Promise<void>;
 type StreamedReferenceNotificationHandler = (notification: StreamedReferenceNotificationPacket) => Promise<void>;
+export declare class IOStackAbortHandler {
+    private controller;
+    private signal;
+    private timeoutId;
+    constructor(timeoutInMillis: number);
+    getSignal(): AbortSignal;
+    reset(): void;
+}
 export interface IOStackClient {
     platform_root: string;
     stream_post_data_addenda: {};
@@ -71,6 +79,7 @@ export interface IOStackClient {
     getHeaders(): Promise<Headers>;
     establishSession(): Promise<void>;
     retrieveAccessToken(): Promise<void>;
+    setRefreshToken(i: string): void;
     processMessage(message: ReadableStreamReadResult<Uint8Array>): Promise<void>;
     handleStreamingResponse(streamedResponseString: string): Promise<void>;
     handleUseCaseNotification(result: UseCaseNotificationPacket): Promise<void>;

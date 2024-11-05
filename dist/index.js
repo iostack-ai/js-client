@@ -90,6 +90,7 @@ module.exports = __WEBPACK_EXTERNAL_MODULE__372__;
 var __webpack_exports__ = {};
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   IOStackAbortHandler: () => (/* binding */ IOStackAbortHandler),
 /* harmony export */   IOStackClientConstructor: () => (/* binding */ IOStackClientConstructor),
 /* harmony export */   newIOStackClient: () => (/* binding */ newIOStackClient)
 /* harmony export */ });
@@ -149,6 +150,9 @@ function IOStackClientConstructor(args) {
     const getAccessKey = function () { return closure.access_key; };
     const setAccessTokenRefreshTime = function (i) { closure.access_token_refresh_time = i; };
     const accessTokenExpired = function () { return !!closure.access_token_refresh_time && new Date(Date.now()) >= closure.access_token_refresh_time; };
+    this.setRefreshToken = function (i) {
+        setRefreshToken(i);
+    };
     this.deregisterAllHandlers = function () {
         this.streamFragmentHandlers = [];
         this.llmStatsHandlers = [];

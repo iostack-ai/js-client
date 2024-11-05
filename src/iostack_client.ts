@@ -63,7 +63,7 @@ type UseCaseNoficationHandler = (notification: UseCaseNotificationPacket) => Pro
 type UseCaseActiveNodeChangeNotificationHandler = (notification: UseCaseActiveNodeChangeNotification) => Promise<void>
 type StreamedReferenceNotificationHandler = (notification: StreamedReferenceNotificationPacket) => Promise<void>
 
-class IOStackAbortHandler {
+export class IOStackAbortHandler {
 
     private controller:AbortController;
     private signal:AbortSignal;
@@ -121,6 +121,7 @@ export interface IOStackClient {
 
     establishSession(): Promise<void>;
     retrieveAccessToken(): Promise<void>;
+    setRefreshToken(i:string): void;
 
     processMessage(message: ReadableStreamReadResult<Uint8Array>): Promise<void>;
 
@@ -187,6 +188,10 @@ export function IOStackClientConstructor (
     const getAccessKey = function () { return closure.access_key }
     const setAccessTokenRefreshTime = function (i: Date) { closure.access_token_refresh_time = i }
     const accessTokenExpired = function (): boolean { return !!closure.access_token_refresh_time && new Date(Date.now()) >= closure.access_token_refresh_time }
+
+    this.setRefreshToken = function(i:string): void {
+        setRefreshToken(i)
+    }
 
     this.deregisterAllHandlers = function (): void {
         this.streamFragmentHandlers = []
