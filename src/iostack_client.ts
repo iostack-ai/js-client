@@ -170,7 +170,7 @@ export function IOStackClientConstructor (
     this.useCaseActiveNodeChangeNotificationHandlers = []
     this.useCaseStreamedReferenceNotificationHandlers = []
     this.stream_post_data_addenda = {}
-    this.metadata_list = args.metadata_list || ["trigger_phrase"]
+    this.metadata_list = args.metadata_list || []
     this.decoder = new TextDecoder();
     this.metadata = null;
 
@@ -646,10 +646,8 @@ IOStackClientConstructor.prototype.startSession = async function() {
         await this.retrieveAccessToken();
         if(this.metadata_list.length > 0) {
             await this.retrieveUseCaseMetaData();
-            if(this.metadata!.trigger_phrase){
-                await this.sendMessageAndStreamResponse(this.metadata!.trigger_phrase)   
-            }
         }
+        await this.sendMessageAndStreamResponse(this.metadata?.trigger_phrase||"")   
     } finally {
         // All errors and exceptions should have been reported via the callback
     }
