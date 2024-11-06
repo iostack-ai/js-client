@@ -647,7 +647,7 @@ IOStackClientConstructor.prototype.startSession = async function() {
         if(this.metadata_list.length > 0) {
             await this.retrieveUseCaseMetaData();
         }
-        await this.sendMessageAndStreamResponse(this.metadata?.trigger_phrase||"")   
+        await this.sendMessageAndStreamResponse(" ")   // Send blank input to trigger first response
     } finally {
         // All errors and exceptions should have been reported via the callback
     }
