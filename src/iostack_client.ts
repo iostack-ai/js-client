@@ -170,7 +170,7 @@ export function IOStackClientConstructor (
     this.useCaseActiveNodeChangeNotificationHandlers = []
     this.useCaseStreamedReferenceNotificationHandlers = []
     this.stream_post_data_addenda = {}
-    this.metadata_list = args.metadata_list || []
+    this.metadata_list = args.metadata_list || ["trigger_phrase"]
     this.decoder = new TextDecoder();
     this.metadata = null;
 
@@ -647,7 +647,7 @@ IOStackClientConstructor.prototype.startSession = async function() {
         if(this.metadata_list.length > 0) {
             await this.retrieveUseCaseMetaData();
         }
-        await this.sendMessageAndStreamResponse(" ")   // Send blank input to trigger first response
+        await this.sendMessageAndStreamResponse(this.metadata?.trigger_phrase||"-")   // Send blank input to trigger first response
     } finally {
         // All errors and exceptions should have been reported via the callback
     }

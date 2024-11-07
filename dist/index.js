@@ -133,7 +133,7 @@ function IOStackClientConstructor(args) {
     this.useCaseActiveNodeChangeNotificationHandlers = [];
     this.useCaseStreamedReferenceNotificationHandlers = [];
     this.stream_post_data_addenda = {};
-    this.metadata_list = args.metadata_list || [];
+    this.metadata_list = args.metadata_list || ["trigger_phrase"];
     this.decoder = new TextDecoder();
     this.metadata = null;
     // Set up a closure for sensitive data
@@ -509,13 +509,14 @@ function IOStackClientConstructor(args) {
 }
 IOStackClientConstructor.prototype.startSession = function () {
     return __awaiter(this, void 0, void 0, function* () {
+        var _a;
         try {
             yield this.establishSession();
             yield this.retrieveAccessToken();
             if (this.metadata_list.length > 0) {
                 yield this.retrieveUseCaseMetaData();
             }
-            yield this.sendMessageAndStreamResponse(" "); // Send blank input to trigger first response
+            yield this.sendMessageAndStreamResponse(((_a = this.metadata) === null || _a === void 0 ? void 0 : _a.trigger_phrase) || "-"); // Send blank input to trigger first response
         }
         finally {
             // All errors and exceptions should have been reported via the callback
