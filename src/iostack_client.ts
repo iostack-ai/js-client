@@ -57,12 +57,13 @@ export interface StreamingErrorPacket extends ClientNotificationPacket {
     message: string
 }
 
-type StreamFragmentHandler = (fragment: StreamFragmentPacket) => Promise<void>
-type LLMStatsHandler = (stats: LLMStatsPacket) => Promise<void>
-type ErrorHandler = (error: string) => Promise<void>
-type UseCaseNoficationHandler = (notification: UseCaseNotificationPacket) => Promise<void>
-type UseCaseActiveNodeChangeNotificationHandler = (notification: UseCaseActiveNodeChangeNotification) => Promise<void>
-type StreamedReferenceNotificationHandler = (notification: StreamedReferenceNotificationPacket) => Promise<void>
+export type StreamFragmentHandler = (fragment: StreamFragmentPacket) => Promise<void>
+export type ErrorHandler = (error: string) => Promise<void>
+export type LLMStatsHandler = (stats: LLMStatsPacket) => Promise<void>
+
+export type UseCaseNoficationHandler = (notification: UseCaseNotificationPacket) => Promise<void>
+export type UseCaseActiveNodeChangeNotificationHandler = (notification: UseCaseActiveNodeChangeNotification) => Promise<void>
+export type StreamedReferenceNotificationHandler = (notification: StreamedReferenceNotificationPacket) => Promise<void>
 
 export class IOStackAbortHandler {
 
