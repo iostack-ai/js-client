@@ -117,7 +117,7 @@ export interface IOStackClient {
     startSession(): Promise<void>;
     sendMessageAndStreamResponse(message: string): Promise<void>;
 
-    reportError(response: Response): Promise<void>;
+    reportError(response: Response): Promise<string>;
 
     getHeaders(): Promise<Headers>;
 
@@ -141,7 +141,7 @@ export interface IOStackClient {
     refreshRefreshToken():Promise<void>;
     retrieveUseCaseMetaData(): Promise<void>;
 
-    reportErrorString(error: string, message: string): Promise<void>;
+    reportErrorString(error: string, message: string): Promise<string>;
 
 }
 
@@ -235,8 +235,7 @@ export function IOStackClientConstructor (
 
     this.getTriggerPrompt = function(): string {
         if(!this.metadata) {
-            this.reportErrorString("Can't retrieve trigger prompt", "Metadata not retrieved")
-            return ""
+            throw new Error("Can't retrieve trigger prompt - Metadata not retrieved")
         }
         return this.metadata.trigger_phrase
     }
@@ -348,8 +347,7 @@ export function IOStackClientConstructor (
             )
 
             if (!response.ok) {
-                await this.reportError(response)
-                return
+                throw new Error(await this.reportError(response))
             }
 
             const body = await response.json();
@@ -357,11 +355,10 @@ export function IOStackClientConstructor (
             this.session_id = body.session_id;
 
         } catch(e:any) {
-            this.reportErrorString(
+            throw new Error(await this.reportErrorString(
                 'Error while establishing response',
                 e.toString()
-            );
-            throw e
+            ));
         } finally {
             abortHandler.reset()
         }
@@ -375,8 +372,7 @@ export function IOStackClientConstructor (
         console.log(`Retrieving access token for session ${this.session_id}`);
 
         if(!this.session_id) {
-            this.reportErrorString("Error retrieving access token", "Session has not yet been established")
-            return
+            throw new Error(await this.reportErrorString("Error retrieving access token", "Session has not yet been established"))
         }
 
         const headers = new Headers();
@@ -397,8 +393,7 @@ export function IOStackClientConstructor (
             )
 
             if (!response.ok) {
-                await reportError(response)
-                return
+                throw new Error(await this.reportError(response))
             }
 
             const body = await response.json();
@@ -407,11 +402,10 @@ export function IOStackClientConstructor (
             calcAndSaveAccessTokenRefreshTime(body.access_token);
     
         } catch(e:any) {
-            this.reportErrorString(
+            throw new Error(await this.reportErrorString(
                 'Error while retrieving access token',
                 e.toString()
-            );
-            throw e
+            ));
         } finally {
             abortHandler.reset()
         }
@@ -423,8 +417,7 @@ export function IOStackClientConstructor (
         console.log(`Refreshing access token for session ${this.session_id}`);
 
         if(!this.session_id) {
-            this.reportErrorString("Error refreshing access token", "Session has not yet been established")
-            return
+            throw new Error(await this.reportErrorString("Error refreshing access token", "Session has not yet been established"))
         }
 
 
@@ -446,8 +439,7 @@ export function IOStackClientConstructor (
             )
 
             if (!response.ok) {
-                await reportError(response)
-                return
+                throw new Error(await this.reportError(response))
             }
 
             const body = await response.json();
@@ -456,11 +448,10 @@ export function IOStackClientConstructor (
             calcAndSaveAccessTokenRefreshTime(body.access_token);
 
         } catch(e:any) {
-            this.reportErrorString(
+            throw new Error(await this.reportErrorString(
                 'Error while refreshing access token',
                 e.toString()
-            );
-            throw e
+            ));
         } finally {
             abortHandler.reset()
         }
@@ -473,8 +464,7 @@ export function IOStackClientConstructor (
         console.log(`Refreshing refresh token for session ${this.session_id}`);
 
         if(!this.session_id) {
-            this.reportErrorString("Error refreshing refresh token", "Session has not yet been established")
-            return
+            throw new Error(await this.reportErrorString("Error refreshing refresh token", "Session has not yet been established"))
         }
 
         const headers = new Headers();
@@ -502,19 +492,17 @@ export function IOStackClientConstructor (
             )
 
             if (!response.ok) {
-                await this.reportError(response)
-                return
+                throw new Error(await this.reportError(response))
             }
 
             const body = await response.json();
             this.setRefreshToken(body.refresh_token);
 
         } catch(e:any) {
-            this.reportErrorString(
+            throw new Error(await this.reportErrorString(
                 'Error while refreshing session refresh token',
                 e.toString()
-            );
-            throw e
+            ));
         } finally {
             abortHandler.reset()
         }
@@ -542,8 +530,7 @@ export function IOStackClientConstructor (
             })
 
             if (!response.ok) {
-                await reportError(response)
-                return
+                throw new Error(await this.reportError(response))
             }
 
             const body = await response.json();
@@ -551,11 +538,10 @@ export function IOStackClientConstructor (
             this.metadata = body.use_case
 
         } catch(e:any) {
-            this.reportErrorString(
+            throw new Error(await this.reportErrorString(
                 'Error while retrieving use case metadata',
                 e.toString()
-            );
-            throw e
+            ));
         } finally {
             abortHandler.reset()
         }
@@ -626,16 +612,17 @@ export function IOStackClientConstructor (
         })
     }
 
-    this.reportError = async function(response: Response): Promise<void> {
+    this.reportError = async function(response: Response): Promise<string> {
         const error = await response.json();
         const errorText = `${response.statusText}:${error.message || error.detail}`;
-        await this.handleError(errorText)
-        // throw new Error(errorText);
+        await this.handleError(errorText);
+        return errorText;
     }
 
-    this.reportErrorString = async function(error: string, message: string): Promise<void> {
-        await this.handleError(`${error} - ${message}`)
-        // throw new Error(`${error} - ${message}`);
+    this.reportErrorString = async function(error: string, message: string): Promise<string> {
+        const errorText = `${error} - ${message}` 
+        await this.handleError(errorText)
+        return errorText
     }
 
 }
@@ -661,8 +648,7 @@ IOStackClientConstructor.prototype.sendMessageAndStreamResponse = async function
     }
 
     if(!this.session_id) {
-        this.reportErrorString("Error sending message", "Session has not yet been established")
-        return
+        throw new Error(await this.reportErrorString("Error sending message", "Session has not yet been established"))
     }
 
     const headers = await this.getHeaders();
@@ -685,6 +671,7 @@ IOStackClientConstructor.prototype.sendMessageAndStreamResponse = async function
 
         if (!response.ok || !response.body) {
             await this.reportError(response);
+
             return;
         }
 
@@ -702,10 +689,10 @@ IOStackClientConstructor.prototype.sendMessageAndStreamResponse = async function
         await reader.read().then(lambda);
 
     } catch (e:any) {
-        this.reportErrorString(
+        throw new Error(await this.reportErrorString(
             'Error while initiating streaming response',
             e.toString()
-        );
+        ));
     } finally {
         abortHandler.reset()
     }
