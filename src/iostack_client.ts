@@ -357,7 +357,7 @@ export function IOStackClientConstructor (
         } catch(e:any) {
             throw new Error(await this.reportErrorString(
                 'Error while establishing response',
-                e.toString()
+                e.message || e.detail
             ));
         } finally {
             abortHandler.reset()
@@ -404,7 +404,7 @@ export function IOStackClientConstructor (
         } catch(e:any) {
             throw new Error(await this.reportErrorString(
                 'Error while retrieving access token',
-                e.toString()
+                e.message || e.detail
             ));
         } finally {
             abortHandler.reset()
@@ -450,7 +450,7 @@ export function IOStackClientConstructor (
         } catch(e:any) {
             throw new Error(await this.reportErrorString(
                 'Error while refreshing access token',
-                e.toString()
+                e.message || e.detail
             ));
         } finally {
             abortHandler.reset()
@@ -501,7 +501,7 @@ export function IOStackClientConstructor (
         } catch(e:any) {
             throw new Error(await this.reportErrorString(
                 'Error while refreshing session refresh token',
-                e.toString()
+                e.message || e.detail
             ));
         } finally {
             abortHandler.reset()
@@ -540,7 +540,7 @@ export function IOStackClientConstructor (
         } catch(e:any) {
             throw new Error(await this.reportErrorString(
                 'Error while retrieving use case metadata',
-                e.toString()
+                e.message || e.detail
             ));
         } finally {
             abortHandler.reset()
@@ -691,7 +691,7 @@ IOStackClientConstructor.prototype.sendMessageAndStreamResponse = async function
     } catch (e:any) {
         throw new Error(await this.reportErrorString(
             'Error while initiating streaming response',
-            e.toString()
+            e.message || e.detail
         ));
     } finally {
         abortHandler.reset()
