@@ -203,12 +203,8 @@ function IOStackClientConstructor(args) {
             return headers;
         });
     };
-    this.processMessage = function (message) {
+    this.processMessage = function (streamedResponsesString) {
         return __awaiter(this, void 0, void 0, function* () {
-            if (message.done) {
-                return;
-            }
-            const streamedResponsesString = this.decoder.decode(message.value, { stream: true });
             const streamResponseStrings = streamedResponsesString.split('__|__');
             for (const streamedResponseString of streamResponseStrings) {
                 yield this.handleStreamingResponse(streamedResponseString);
@@ -521,6 +517,7 @@ IOStackClientConstructor.prototype.sendMessageAndStreamResponse = function (mess
         const headers = yield this.getHeaders();
         const postBody = Object.assign({ message: message }, this.stream_post_data_addenda);
         const abortHandler = new IOStackAbortHandler(60 * 1000);
+        const allChunks = [];
         try {
             const response = yield fetch(this.platform_root + `/v1/use_case/session/${this.session_id}/stream`, {
                 method: 'POST',
@@ -534,15 +531,17 @@ IOStackClientConstructor.prototype.sendMessageAndStreamResponse = function (mess
             }
             const reader = response.body.getReader();
             const lambda = (message) => __awaiter(this, void 0, void 0, function* () {
+                const streamedResponsesString = this.decoder.decode(message.value, { stream: true });
+                allChunks.push(streamedResponsesString);
                 if (message.done) {
+                    try {
+                        yield this.processMessage(allChunks.join(""));
+                    }
+                    catch (e) {
+                        this.reportErrorString(`Encountered error ${e} while processing ${message}`);
+                        throw e;
+                    }
                     return;
-                }
-                try {
-                    yield this.processMessage(message);
-                }
-                catch (e) {
-                    this.reportErrorString(`Encountered error ${e} while processing ${message}`);
-                    throw e;
                 }
                 return reader.read().then(lambda);
             });

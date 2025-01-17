@@ -125,7 +125,7 @@ export interface IOStackClient {
     retrieveAccessToken(): Promise<void>;
     setRefreshToken(i:string): void;
 
-    processMessage(message: ReadableStreamReadResult<Uint8Array>): Promise<void>;
+    processMessage(message: string): Promise<void>;
 
     handleStreamingResponse(streamedResponseString: string): Promise<void>;
     handleUseCaseNotification(result: UseCaseNotificationPacket): Promise<void>;
@@ -258,13 +258,8 @@ export function IOStackClientConstructor (
         return headers
     }
 
-    this.processMessage = async function(message: ReadableStreamReadResult<Uint8Array>): Promise<void> {
+    this.processMessage = async function(streamedResponsesString: string): Promise<void> {
 
-        if (message.done) {
-            return;
-        }
-
-        const streamedResponsesString = this.decoder.decode(message.value, { stream: true });
         const streamResponseStrings = streamedResponsesString.split('__|__');
 
         for (const streamedResponseString of streamResponseStrings) {
@@ -660,6 +655,8 @@ IOStackClientConstructor.prototype.sendMessageAndStreamResponse = async function
 
     const abortHandler = new IOStackAbortHandler(60 * 1000)
 
+    const allChunks:string[] = [];
+
     try {
 
         const response: Response = await fetch(this.platform_root + `/v1/use_case/session/${this.session_id}/stream`, {
@@ -678,16 +675,20 @@ IOStackClientConstructor.prototype.sendMessageAndStreamResponse = async function
         const reader: ReadableStreamDefaultReader<Uint8Array> = response.body.getReader();
 
         const lambda = async (message: ReadableStreamReadResult<Uint8Array>): Promise<void> => {
-            if (message.done) {
-                return;
-            }
+    
+            const streamedResponsesString = this.decoder.decode(message.value, { stream: true });
 
-            try {
-                await this.processMessage(message);
-            }
-            catch (e:any) {
-                this.reportErrorString(`Encountered error ${e} while processing ${message}`)
-                throw e
+            allChunks.push(streamedResponsesString)
+
+            if (message.done) {
+                try {
+                    await this.processMessage(allChunks.join(""));
+                }
+                catch (e:any) {
+                    this.reportErrorString(`Encountered error ${e} while processing ${message}`)
+                    throw e
+                }
+                return;
             }
 
             return reader.read().then(lambda);

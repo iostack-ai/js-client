@@ -80,7 +80,7 @@ export interface IOStackClient {
     establishSession(): Promise<void>;
     retrieveAccessToken(): Promise<void>;
     setRefreshToken(i: string): void;
-    processMessage(message: ReadableStreamReadResult<Uint8Array>): Promise<void>;
+    processMessage(message: string): Promise<void>;
     handleStreamingResponse(streamedResponseString: string): Promise<void>;
     handleUseCaseNotification(result: UseCaseNotificationPacket): Promise<void>;
     handleStreamedFragment(fragment: StreamFragmentPacket): Promise<void>;
