@@ -268,6 +268,7 @@ export function IOStackClientConstructor (
         while(delimIndex != -1) {
             await this.handleStreamingResponse(this.runningBuffer.slice(0, delimIndex))
             this.runningBuffer = this.runningBuffer.substring(delimIndex + '__|__'.length)
+            delimIndex = this.runningBuffer.indexOf('__|__')
         }
 
     }
@@ -661,7 +662,7 @@ IOStackClientConstructor.prototype.sendMessageAndStreamResponse = async function
     const abortHandler = new IOStackAbortHandler(60 * 1000)
 
     this.runningBuffer = "";
-    
+
     try {
 
         const response: Response = await fetch(this.platform_root + `/v1/use_case/session/${this.session_id}/stream`, {

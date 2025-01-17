@@ -211,6 +211,7 @@ function IOStackClientConstructor(args) {
             while (delimIndex != -1) {
                 yield this.handleStreamingResponse(this.runningBuffer.slice(0, delimIndex));
                 this.runningBuffer = this.runningBuffer.substring(delimIndex + '__|__'.length);
+                delimIndex = this.runningBuffer.indexOf('__|__');
             }
         });
     };
