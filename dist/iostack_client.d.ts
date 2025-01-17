@@ -65,6 +65,7 @@ export interface IOStackClient {
     metadata_list: string[];
     decoder: TextDecoder;
     metadata: Record<string, any> | null;
+    runningBuffer: string;
     deregisterAllHandlers(): void;
     registerStreamFragmentHandler(h: StreamFragmentHandler): void;
     registerLLMStatsHandler(h: LLMStatsHandler): void;

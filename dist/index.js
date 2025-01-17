@@ -136,6 +136,7 @@ function IOStackClientConstructor(args) {
     this.metadata_list = args.metadata_list || ["trigger_phrase"];
     this.decoder = new TextDecoder();
     this.metadata = null;
+    this.runningBuffer = "";
     // Set up a closure for sensitive data
     const closure = {
         refresh_token: "",
@@ -205,9 +206,11 @@ function IOStackClientConstructor(args) {
     };
     this.processMessage = function (streamedResponsesString) {
         return __awaiter(this, void 0, void 0, function* () {
-            const streamResponseStrings = streamedResponsesString.split('__|__');
-            for (const streamedResponseString of streamResponseStrings) {
-                yield this.handleStreamingResponse(streamedResponseString);
+            this.runningBuffer += streamedResponsesString;
+            let delimIndex = this.runningBuffer.indexOf('__|__');
+            while (delimIndex != -1) {
+                yield this.handleStreamingResponse(this.runningBuffer.slice(0, delimIndex));
+                this.runningBuffer = this.runningBuffer.substring(delimIndex + '__|__'.length);
             }
         });
     };
@@ -517,7 +520,7 @@ IOStackClientConstructor.prototype.sendMessageAndStreamResponse = function (mess
         const headers = yield this.getHeaders();
         const postBody = Object.assign({ message: message }, this.stream_post_data_addenda);
         const abortHandler = new IOStackAbortHandler(60 * 1000);
-        const allChunks = [];
+        this.runningBuffer = "";
         try {
             const response = yield fetch(this.platform_root + `/v1/use_case/session/${this.session_id}/stream`, {
                 method: 'POST',
@@ -532,15 +535,14 @@ IOStackClientConstructor.prototype.sendMessageAndStreamResponse = function (mess
             const reader = response.body.getReader();
             const lambda = (message) => __awaiter(this, void 0, void 0, function* () {
                 const streamedResponsesString = this.decoder.decode(message.value, { stream: true });
-                allChunks.push(streamedResponsesString);
+                try {
+                    yield this.processMessage(streamedResponsesString);
+                }
+                catch (e) {
+                    this.reportErrorString(`Encountered error ${e} while processing ${message}`);
+                    throw e;
+                }
                 if (message.done) {
-                    try {
-                        yield this.processMessage(allChunks.join(""));
-                    }
-                    catch (e) {
-                        this.reportErrorString(`Encountered error ${e} while processing ${message}`);
-                        throw e;
-                    }
                     return;
                 }
                 return reader.read().then(lambda);

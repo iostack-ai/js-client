@@ -103,6 +103,7 @@ export interface IOStackClient {
     metadata_list:string[];
     decoder:TextDecoder;
     metadata:Record<string, any>|null;
+    runningBuffer: string;
 
     deregisterAllHandlers(): void;
     registerStreamFragmentHandler(h: StreamFragmentHandler): void;
@@ -174,6 +175,7 @@ export function IOStackClientConstructor (
     this.metadata_list = args.metadata_list || ["trigger_phrase"]
     this.decoder = new TextDecoder();
     this.metadata = null;
+    this.runningBuffer = ""
 
     // Set up a closure for sensitive data
 
@@ -260,11 +262,14 @@ export function IOStackClientConstructor (
 
     this.processMessage = async function(streamedResponsesString: string): Promise<void> {
 
-        const streamResponseStrings = streamedResponsesString.split('__|__');
+        this.runningBuffer += streamedResponsesString
 
-        for (const streamedResponseString of streamResponseStrings) {
-            await this.handleStreamingResponse(streamedResponseString)
+        let delimIndex = this.runningBuffer.indexOf('__|__')
+        while(delimIndex != -1) {
+            await this.handleStreamingResponse(this.runningBuffer.slice(0, delimIndex))
+            this.runningBuffer = this.runningBuffer.substring(delimIndex + '__|__'.length)
         }
+
     }
 
     this.handleStreamingResponse = async function(streamedResponseString: string): Promise<void> {
@@ -655,8 +660,8 @@ IOStackClientConstructor.prototype.sendMessageAndStreamResponse = async function
 
     const abortHandler = new IOStackAbortHandler(60 * 1000)
 
-    const allChunks:string[] = [];
-
+    this.runningBuffer = "";
+    
     try {
 
         const response: Response = await fetch(this.platform_root + `/v1/use_case/session/${this.session_id}/stream`, {
@@ -678,16 +683,15 @@ IOStackClientConstructor.prototype.sendMessageAndStreamResponse = async function
     
             const streamedResponsesString = this.decoder.decode(message.value, { stream: true });
 
-            allChunks.push(streamedResponsesString)
+            try {
+                await this.processMessage(streamedResponsesString);
+            }
+            catch (e:any) {
+                this.reportErrorString(`Encountered error ${e} while processing ${message}`)
+                throw e
+            }
 
             if (message.done) {
-                try {
-                    await this.processMessage(allChunks.join(""));
-                }
-                catch (e:any) {
-                    this.reportErrorString(`Encountered error ${e} while processing ${message}`)
-                    throw e
-                }
                 return;
             }
 
