@@ -185,8 +185,7 @@ function IOStackClientConstructor(args) {
     };
     this.getTriggerPrompt = function () {
         if (!this.metadata) {
-            this.reportErrorString("Can't retrieve trigger prompt", "Metadata not retrieved");
-            return "";
+            throw new Error("Can't retrieve trigger prompt - Metadata not retrieved");
         }
         return this.metadata.trigger_phrase;
     };
@@ -273,16 +272,14 @@ function IOStackClientConstructor(args) {
                     signal: abortHandler.getSignal()
                 });
                 if (!response.ok) {
-                    yield this.reportError(response);
-                    return;
+                    throw new Error(yield this.reportError(response));
                 }
                 const body = yield response.json();
                 this.setRefreshToken(body.refresh_token);
                 this.session_id = body.session_id;
             }
             catch (e) {
-                this.reportErrorString('Error while establishing response', e.toString());
-                throw e;
+                throw new Error(yield this.reportErrorString('Error while establishing response', e.message || e.detail));
             }
             finally {
                 abortHandler.reset();
@@ -293,8 +290,7 @@ function IOStackClientConstructor(args) {
         return __awaiter(this, void 0, void 0, function* () {
             console.log(`Retrieving access token for session ${this.session_id}`);
             if (!this.session_id) {
-                this.reportErrorString("Error retrieving access token", "Session has not yet been established");
-                return;
+                throw new Error(yield this.reportErrorString("Error retrieving access token", "Session has not yet been established"));
             }
             const headers = new Headers();
             headers.append('Content-Type', 'application/json');
@@ -308,16 +304,14 @@ function IOStackClientConstructor(args) {
                     signal: abortHandler.getSignal()
                 });
                 if (!response.ok) {
-                    yield reportError(response);
-                    return;
+                    throw new Error(yield this.reportError(response));
                 }
                 const body = yield response.json();
                 setAccessToken(body.access_token);
                 calcAndSaveAccessTokenRefreshTime(body.access_token);
             }
             catch (e) {
-                this.reportErrorString('Error while retrieving access token', e.toString());
-                throw e;
+                throw new Error(yield this.reportErrorString('Error while retrieving access token', e.message || e.detail));
             }
             finally {
                 abortHandler.reset();
@@ -328,8 +322,7 @@ function IOStackClientConstructor(args) {
         return __awaiter(this, void 0, void 0, function* () {
             console.log(`Refreshing access token for session ${this.session_id}`);
             if (!this.session_id) {
-                this.reportErrorString("Error refreshing access token", "Session has not yet been established");
-                return;
+                throw new Error(yield this.reportErrorString("Error refreshing access token", "Session has not yet been established"));
             }
             const headers = new Headers();
             headers.append('Content-Type', 'application/json');
@@ -343,16 +336,14 @@ function IOStackClientConstructor(args) {
                     signal: abortHandler.getSignal()
                 });
                 if (!response.ok) {
-                    yield reportError(response);
-                    return;
+                    throw new Error(yield this.reportError(response));
                 }
                 const body = yield response.json();
                 setAccessToken(body.access_token);
                 calcAndSaveAccessTokenRefreshTime(body.access_token);
             }
             catch (e) {
-                this.reportErrorString('Error while refreshing access token', e.toString());
-                throw e;
+                throw new Error(yield this.reportErrorString('Error while refreshing access token', e.message || e.detail));
             }
             finally {
                 abortHandler.reset();
@@ -363,8 +354,7 @@ function IOStackClientConstructor(args) {
         return __awaiter(this, void 0, void 0, function* () {
             console.log(`Refreshing refresh token for session ${this.session_id}`);
             if (!this.session_id) {
-                this.reportErrorString("Error refreshing refresh token", "Session has not yet been established");
-                return;
+                throw new Error(yield this.reportErrorString("Error refreshing refresh token", "Session has not yet been established"));
             }
             const headers = new Headers();
             headers.append('Content-Type', 'application/json');
@@ -383,15 +373,13 @@ function IOStackClientConstructor(args) {
                     signal: abortHandler.getSignal()
                 });
                 if (!response.ok) {
-                    yield this.reportError(response);
-                    return;
+                    throw new Error(yield this.reportError(response));
                 }
                 const body = yield response.json();
                 this.setRefreshToken(body.refresh_token);
             }
             catch (e) {
-                this.reportErrorString('Error while refreshing session refresh token', e.toString());
-                throw e;
+                throw new Error(yield this.reportErrorString('Error while refreshing session refresh token', e.message || e.detail));
             }
             finally {
                 abortHandler.reset();
@@ -413,15 +401,13 @@ function IOStackClientConstructor(args) {
                     signal: abortHandler.getSignal()
                 });
                 if (!response.ok) {
-                    yield reportError(response);
-                    return;
+                    throw new Error(yield this.reportError(response));
                 }
                 const body = yield response.json();
                 this.metadata = body.use_case;
             }
             catch (e) {
-                this.reportErrorString('Error while retrieving use case metadata', e.toString());
-                throw e;
+                throw new Error(yield this.reportErrorString('Error while retrieving use case metadata', e.message || e.detail));
             }
             finally {
                 abortHandler.reset();
@@ -497,13 +483,14 @@ function IOStackClientConstructor(args) {
             const error = yield response.json();
             const errorText = `${response.statusText}:${error.message || error.detail}`;
             yield this.handleError(errorText);
-            // throw new Error(errorText);
+            return errorText;
         });
     };
     this.reportErrorString = function (error, message) {
         return __awaiter(this, void 0, void 0, function* () {
-            yield this.handleError(`${error} - ${message}`);
-            // throw new Error(`${error} - ${message}`);
+            const errorText = `${error} - ${message}`;
+            yield this.handleError(errorText);
+            return errorText;
         });
     };
 }
@@ -529,8 +516,7 @@ IOStackClientConstructor.prototype.sendMessageAndStreamResponse = function (mess
             return;
         }
         if (!this.session_id) {
-            this.reportErrorString("Error sending message", "Session has not yet been established");
-            return;
+            throw new Error(yield this.reportErrorString("Error sending message", "Session has not yet been established"));
         }
         const headers = yield this.getHeaders();
         const postBody = Object.assign({ message: message }, this.stream_post_data_addenda);
@@ -551,13 +537,19 @@ IOStackClientConstructor.prototype.sendMessageAndStreamResponse = function (mess
                 if (message.done) {
                     return;
                 }
-                yield this.processMessage(message);
+                try {
+                    yield this.processMessage(message);
+                }
+                catch (e) {
+                    this.reportErrorString(`Encountered error ${e} while processing ${message}`);
+                    throw e;
+                }
                 return reader.read().then(lambda);
             });
             yield reader.read().then(lambda);
         }
         catch (e) {
-            this.reportErrorString('Error while initiating streaming response', e.toString());
+            throw new Error(yield this.reportErrorString('Error while initiating streaming response', e.message || e.detail));
         }
         finally {
             abortHandler.reset();

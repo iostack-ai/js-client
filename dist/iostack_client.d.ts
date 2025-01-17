@@ -75,7 +75,7 @@ export interface IOStackClient {
     getTriggerPrompt(): string;
     startSession(): Promise<void>;
     sendMessageAndStreamResponse(message: string): Promise<void>;
-    reportError(response: Response): Promise<void>;
+    reportError(response: Response): Promise<string>;
     getHeaders(): Promise<Headers>;
     establishSession(): Promise<void>;
     retrieveAccessToken(): Promise<void>;
@@ -92,7 +92,7 @@ export interface IOStackClient {
     refreshAccessToken(): Promise<void>;
     refreshRefreshToken(): Promise<void>;
     retrieveUseCaseMetaData(): Promise<void>;
-    reportErrorString(error: string, message: string): Promise<void>;
+    reportErrorString(error: string, message: string): Promise<string>;
 }
 export type ClientConstructorArgs = {
     access_key: string;

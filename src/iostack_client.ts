@@ -682,7 +682,14 @@ IOStackClientConstructor.prototype.sendMessageAndStreamResponse = async function
                 return;
             }
 
-            await this.processMessage(message);
+            try {
+                await this.processMessage(message);
+            }
+            catch (e:any) {
+                this.reportErrorString(`Encountered error ${e} while processing ${message}`)
+                throw e
+            }
+
             return reader.read().then(lambda);
         };
 
