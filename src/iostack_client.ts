@@ -98,6 +98,7 @@ export interface IOStackClient {
     llmStatsHandlers:LLMStatsHandler[];
     errorHandlers:ErrorHandler[];
     useCaseNotificationHandlers:UseCaseNoficationHandler[];
+    debugNotificationHandlers:UseCaseNoficationHandler[];
     useCaseActiveNodeChangeNotificationHandlers:UseCaseActiveNodeChangeNotificationHandler[];
     useCaseStreamedReferenceNotificationHandlers:StreamedReferenceNotificationHandler[];
     metadata_list:string[];
@@ -110,6 +111,7 @@ export interface IOStackClient {
     registerLLMStatsHandler(h: LLMStatsHandler): void;
     registerErrorHandler(h: ErrorHandler): void;
     registerUseCaseNotificationHandler(h: UseCaseNoficationHandler): void;
+    registerDebugNotificationHandler(h: UseCaseNoficationHandler): void;
     registerUseCaseStreamReferenceNotificationHandler(h: StreamedReferenceNotificationHandler): void;
     registerUseCaseActiveNodeChangeNotificationHandler(h: UseCaseActiveNodeChangeNotificationHandler): void;
 
@@ -130,11 +132,13 @@ export interface IOStackClient {
 
     handleStreamingResponse(streamedResponseString: string): Promise<void>;
     handleUseCaseNotification(result: UseCaseNotificationPacket): Promise<void>;
+    handleDebugNotification(result: UseCaseNotificationPacket): Promise<void>;
 
     handleStreamedFragment(fragment: StreamFragmentPacket): Promise<void>;
     handleLLMStats(stats: LLMStatsPacket): Promise<void>;
     handleError(error: string): Promise<void>;
     handleExternalUseCaseNotification(notification: UseCaseNotificationPacket): Promise<void>;
+    handleExternalDebugNotification(notification: UseCaseNotificationPacket): Promise<void>;
     handleUseCaseStreamedReferenceNotification(notification: StreamedReferenceNotificationPacket): Promise<void>;
     handleActiveNodeChange(notification: UseCaseActiveNodeChangeNotification): Promise<void>;
 
@@ -169,6 +173,7 @@ export function IOStackClientConstructor (
     this.llmStatsHandlers = [];
     this.errorHandlers = [];
     this.useCaseNotificationHandlers = [];
+    this.debugNotificationHandlers = [];
     this.useCaseActiveNodeChangeNotificationHandlers = []
     this.useCaseStreamedReferenceNotificationHandlers = []
     this.stream_post_data_addenda = {}
@@ -207,6 +212,7 @@ export function IOStackClientConstructor (
         this.llmStatsHandlers = []
         this.errorHandlers = []
         this.useCaseNotificationHandlers = []
+        this.debugNotificationHandlers = []
         this.useCaseActiveNodeChangeNotificationHandlers = []
         this.useCaseStreamedReferenceNotificationHandlers = []
     }
@@ -225,6 +231,10 @@ export function IOStackClientConstructor (
 
     this.registerUseCaseNotificationHandler = function(h: UseCaseNoficationHandler): void {
         this.useCaseNotificationHandlers.push(h)
+    }
+
+    this.registerDebugNotificationHandler = function(h: UseCaseNoficationHandler): void {
+        this.debugNotificationHandlers.push(h)
     }
 
     this.registerUseCaseStreamReferenceNotificationHandler = function(h: StreamedReferenceNotificationHandler): void {
@@ -296,6 +306,10 @@ export function IOStackClientConstructor (
                 await this.handleUseCaseNotification(streamedResponse as UseCaseNotificationPacket);
                 break;
 
+            case 'debug':
+                await this.handleDebugNotification(streamedResponse as UseCaseNotificationPacket);
+                break;
+    
             case 'streamed_ref':
                 await this.handleUseCaseStreamedReferenceNotification(streamedResponse as StreamedReferenceNotificationPacket);
                 break
@@ -317,6 +331,10 @@ export function IOStackClientConstructor (
             default:
                 await this.handleExternalUseCaseNotification(result);
         }
+    }
+
+    this.handleDebugNotification = async function(result: UseCaseNotificationPacket): Promise<void> {
+        await this.handleExternalDebugNotification(result);
     }
 
     this.establishSession = async function(): Promise<void> {
@@ -597,6 +615,12 @@ export function IOStackClientConstructor (
 
     this.handleExternalUseCaseNotification = async function(notification: UseCaseNotificationPacket): Promise<void> {
         this.useCaseNotificationHandlers.forEach(async h => {
+            await h(notification)
+        })
+    }
+
+    this.handleExternalDebugNotification = async function(notification: UseCaseNotificationPacket): Promise<void> {
+        this.debugNotificationHandlers.forEach(async h => {
             await h(notification)
         })
     }
