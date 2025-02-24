@@ -98,17 +98,20 @@ export interface IOStackClient {
     llmStatsHandlers:LLMStatsHandler[];
     errorHandlers:ErrorHandler[];
     useCaseNotificationHandlers:UseCaseNoficationHandler[];
+    debugNotificationHandlers:UseCaseNoficationHandler[];
     useCaseActiveNodeChangeNotificationHandlers:UseCaseActiveNodeChangeNotificationHandler[];
     useCaseStreamedReferenceNotificationHandlers:StreamedReferenceNotificationHandler[];
     metadata_list:string[];
     decoder:TextDecoder;
     metadata:Record<string, any>|null;
+    runningBuffer: string;
 
     deregisterAllHandlers(): void;
     registerStreamFragmentHandler(h: StreamFragmentHandler): void;
     registerLLMStatsHandler(h: LLMStatsHandler): void;
     registerErrorHandler(h: ErrorHandler): void;
     registerUseCaseNotificationHandler(h: UseCaseNoficationHandler): void;
+    registerDebugNotificationHandler(h: UseCaseNoficationHandler): void;
     registerUseCaseStreamReferenceNotificationHandler(h: StreamedReferenceNotificationHandler): void;
     registerUseCaseActiveNodeChangeNotificationHandler(h: UseCaseActiveNodeChangeNotificationHandler): void;
 
@@ -117,7 +120,7 @@ export interface IOStackClient {
     startSession(): Promise<void>;
     sendMessageAndStreamResponse(message: string): Promise<void>;
 
-    reportError(response: Response): Promise<void>;
+    reportError(response: Response): Promise<string>;
 
     getHeaders(): Promise<Headers>;
 
@@ -125,15 +128,17 @@ export interface IOStackClient {
     retrieveAccessToken(): Promise<void>;
     setRefreshToken(i:string): void;
 
-    processMessage(message: ReadableStreamReadResult<Uint8Array>): Promise<void>;
+    processMessage(message: string): Promise<void>;
 
     handleStreamingResponse(streamedResponseString: string): Promise<void>;
     handleUseCaseNotification(result: UseCaseNotificationPacket): Promise<void>;
+    handleDebugNotification(result: UseCaseNotificationPacket): Promise<void>;
 
     handleStreamedFragment(fragment: StreamFragmentPacket): Promise<void>;
     handleLLMStats(stats: LLMStatsPacket): Promise<void>;
     handleError(error: string): Promise<void>;
     handleExternalUseCaseNotification(notification: UseCaseNotificationPacket): Promise<void>;
+    handleExternalDebugNotification(notification: UseCaseNotificationPacket): Promise<void>;
     handleUseCaseStreamedReferenceNotification(notification: StreamedReferenceNotificationPacket): Promise<void>;
     handleActiveNodeChange(notification: UseCaseActiveNodeChangeNotification): Promise<void>;
 
@@ -141,7 +146,7 @@ export interface IOStackClient {
     refreshRefreshToken():Promise<void>;
     retrieveUseCaseMetaData(): Promise<void>;
 
-    reportErrorString(error: string, message: string): Promise<void>;
+    reportErrorString(error: string, message: string): Promise<string>;
 
 }
 
@@ -168,12 +173,14 @@ export function IOStackClientConstructor (
     this.llmStatsHandlers = [];
     this.errorHandlers = [];
     this.useCaseNotificationHandlers = [];
+    this.debugNotificationHandlers = [];
     this.useCaseActiveNodeChangeNotificationHandlers = []
     this.useCaseStreamedReferenceNotificationHandlers = []
     this.stream_post_data_addenda = {}
     this.metadata_list = args.metadata_list || ["trigger_phrase"]
     this.decoder = new TextDecoder();
     this.metadata = null;
+    this.runningBuffer = ""
 
     // Set up a closure for sensitive data
 
@@ -205,6 +212,7 @@ export function IOStackClientConstructor (
         this.llmStatsHandlers = []
         this.errorHandlers = []
         this.useCaseNotificationHandlers = []
+        this.debugNotificationHandlers = []
         this.useCaseActiveNodeChangeNotificationHandlers = []
         this.useCaseStreamedReferenceNotificationHandlers = []
     }
@@ -225,6 +233,10 @@ export function IOStackClientConstructor (
         this.useCaseNotificationHandlers.push(h)
     }
 
+    this.registerDebugNotificationHandler = function(h: UseCaseNoficationHandler): void {
+        this.debugNotificationHandlers.push(h)
+    }
+
     this.registerUseCaseStreamReferenceNotificationHandler = function(h: StreamedReferenceNotificationHandler): void {
         this.useCaseStreamedReferenceNotificationHandlers.push(h)
     }
@@ -235,8 +247,7 @@ export function IOStackClientConstructor (
 
     this.getTriggerPrompt = function(): string {
         if(!this.metadata) {
-            this.reportErrorString("Can't retrieve trigger prompt", "Metadata not retrieved")
-            return ""
+            throw new Error("Can't retrieve trigger prompt - Metadata not retrieved")
         }
         return this.metadata.trigger_phrase
     }
@@ -259,18 +270,17 @@ export function IOStackClientConstructor (
         return headers
     }
 
-    this.processMessage = async function(message: ReadableStreamReadResult<Uint8Array>): Promise<void> {
+    this.processMessage = async function(streamedResponsesString: string): Promise<void> {
 
-        if (message.done) {
-            return;
+        this.runningBuffer += streamedResponsesString
+
+        let delimIndex = this.runningBuffer.indexOf('__|__')
+        while(delimIndex != -1) {
+            await this.handleStreamingResponse(this.runningBuffer.slice(0, delimIndex))
+            this.runningBuffer = this.runningBuffer.substring(delimIndex + '__|__'.length)
+            delimIndex = this.runningBuffer.indexOf('__|__')
         }
 
-        const streamedResponsesString = this.decoder.decode(message.value, { stream: true });
-        const streamResponseStrings = streamedResponsesString.split('__|__');
-
-        for (const streamedResponseString of streamResponseStrings) {
-            await this.handleStreamingResponse(streamedResponseString)
-        }
     }
 
     this.handleStreamingResponse = async function(streamedResponseString: string): Promise<void> {
@@ -296,6 +306,10 @@ export function IOStackClientConstructor (
                 await this.handleUseCaseNotification(streamedResponse as UseCaseNotificationPacket);
                 break;
 
+            case 'debug':
+                await this.handleDebugNotification(streamedResponse as UseCaseNotificationPacket);
+                break;
+    
             case 'streamed_ref':
                 await this.handleUseCaseStreamedReferenceNotification(streamedResponse as StreamedReferenceNotificationPacket);
                 break
@@ -317,6 +331,10 @@ export function IOStackClientConstructor (
             default:
                 await this.handleExternalUseCaseNotification(result);
         }
+    }
+
+    this.handleDebugNotification = async function(result: UseCaseNotificationPacket): Promise<void> {
+        await this.handleExternalDebugNotification(result);
     }
 
     this.establishSession = async function(): Promise<void> {
@@ -348,8 +366,7 @@ export function IOStackClientConstructor (
             )
 
             if (!response.ok) {
-                await this.reportError(response)
-                return
+                throw new Error(await this.reportError(response))
             }
 
             const body = await response.json();
@@ -357,11 +374,10 @@ export function IOStackClientConstructor (
             this.session_id = body.session_id;
 
         } catch(e:any) {
-            this.reportErrorString(
+            throw new Error(await this.reportErrorString(
                 'Error while establishing response',
-                e.toString()
-            );
-            throw e
+                e.message || e.detail
+            ));
         } finally {
             abortHandler.reset()
         }
@@ -375,8 +391,7 @@ export function IOStackClientConstructor (
         console.log(`Retrieving access token for session ${this.session_id}`);
 
         if(!this.session_id) {
-            this.reportErrorString("Error retrieving access token", "Session has not yet been established")
-            return
+            throw new Error(await this.reportErrorString("Error retrieving access token", "Session has not yet been established"))
         }
 
         const headers = new Headers();
@@ -397,8 +412,7 @@ export function IOStackClientConstructor (
             )
 
             if (!response.ok) {
-                await reportError(response)
-                return
+                throw new Error(await this.reportError(response))
             }
 
             const body = await response.json();
@@ -407,11 +421,10 @@ export function IOStackClientConstructor (
             calcAndSaveAccessTokenRefreshTime(body.access_token);
     
         } catch(e:any) {
-            this.reportErrorString(
+            throw new Error(await this.reportErrorString(
                 'Error while retrieving access token',
-                e.toString()
-            );
-            throw e
+                e.message || e.detail
+            ));
         } finally {
             abortHandler.reset()
         }
@@ -423,8 +436,7 @@ export function IOStackClientConstructor (
         console.log(`Refreshing access token for session ${this.session_id}`);
 
         if(!this.session_id) {
-            this.reportErrorString("Error refreshing access token", "Session has not yet been established")
-            return
+            throw new Error(await this.reportErrorString("Error refreshing access token", "Session has not yet been established"))
         }
 
 
@@ -446,8 +458,7 @@ export function IOStackClientConstructor (
             )
 
             if (!response.ok) {
-                await reportError(response)
-                return
+                throw new Error(await this.reportError(response))
             }
 
             const body = await response.json();
@@ -456,11 +467,10 @@ export function IOStackClientConstructor (
             calcAndSaveAccessTokenRefreshTime(body.access_token);
 
         } catch(e:any) {
-            this.reportErrorString(
+            throw new Error(await this.reportErrorString(
                 'Error while refreshing access token',
-                e.toString()
-            );
-            throw e
+                e.message || e.detail
+            ));
         } finally {
             abortHandler.reset()
         }
@@ -473,8 +483,7 @@ export function IOStackClientConstructor (
         console.log(`Refreshing refresh token for session ${this.session_id}`);
 
         if(!this.session_id) {
-            this.reportErrorString("Error refreshing refresh token", "Session has not yet been established")
-            return
+            throw new Error(await this.reportErrorString("Error refreshing refresh token", "Session has not yet been established"))
         }
 
         const headers = new Headers();
@@ -502,19 +511,17 @@ export function IOStackClientConstructor (
             )
 
             if (!response.ok) {
-                await this.reportError(response)
-                return
+                throw new Error(await this.reportError(response))
             }
 
             const body = await response.json();
             this.setRefreshToken(body.refresh_token);
 
         } catch(e:any) {
-            this.reportErrorString(
+            throw new Error(await this.reportErrorString(
                 'Error while refreshing session refresh token',
-                e.toString()
-            );
-            throw e
+                e.message || e.detail
+            ));
         } finally {
             abortHandler.reset()
         }
@@ -542,8 +549,7 @@ export function IOStackClientConstructor (
             })
 
             if (!response.ok) {
-                await reportError(response)
-                return
+                throw new Error(await this.reportError(response))
             }
 
             const body = await response.json();
@@ -551,11 +557,10 @@ export function IOStackClientConstructor (
             this.metadata = body.use_case
 
         } catch(e:any) {
-            this.reportErrorString(
+            throw new Error(await this.reportErrorString(
                 'Error while retrieving use case metadata',
-                e.toString()
-            );
-            throw e
+                e.message || e.detail
+            ));
         } finally {
             abortHandler.reset()
         }
@@ -614,6 +619,12 @@ export function IOStackClientConstructor (
         })
     }
 
+    this.handleExternalDebugNotification = async function(notification: UseCaseNotificationPacket): Promise<void> {
+        this.debugNotificationHandlers.forEach(async h => {
+            await h(notification)
+        })
+    }
+
     this.handleUseCaseStreamedReferenceNotification = async function(notification: StreamedReferenceNotificationPacket): Promise<void> {
         this.useCaseStreamedReferenceNotificationHandlers.forEach(async h => {
             await h(notification)
@@ -626,16 +637,17 @@ export function IOStackClientConstructor (
         })
     }
 
-    this.reportError = async function(response: Response): Promise<void> {
+    this.reportError = async function(response: Response): Promise<string> {
         const error = await response.json();
         const errorText = `${response.statusText}:${error.message || error.detail}`;
-        await this.handleError(errorText)
-        // throw new Error(errorText);
+        await this.handleError(errorText);
+        return errorText;
     }
 
-    this.reportErrorString = async function(error: string, message: string): Promise<void> {
-        await this.handleError(`${error} - ${message}`)
-        // throw new Error(`${error} - ${message}`);
+    this.reportErrorString = async function(error: string, message: string): Promise<string> {
+        const errorText = `${error} - ${message}` 
+        await this.handleError(errorText)
+        return errorText
     }
 
 }
@@ -661,8 +673,7 @@ IOStackClientConstructor.prototype.sendMessageAndStreamResponse = async function
     }
 
     if(!this.session_id) {
-        this.reportErrorString("Error sending message", "Session has not yet been established")
-        return
+        throw new Error(await this.reportErrorString("Error sending message", "Session has not yet been established"))
     }
 
     const headers = await this.getHeaders();
@@ -673,6 +684,8 @@ IOStackClientConstructor.prototype.sendMessageAndStreamResponse = async function
     };
 
     const abortHandler = new IOStackAbortHandler(60 * 1000)
+
+    this.runningBuffer = "";
 
     try {
 
@@ -685,27 +698,38 @@ IOStackClientConstructor.prototype.sendMessageAndStreamResponse = async function
 
         if (!response.ok || !response.body) {
             await this.reportError(response);
+
             return;
         }
 
         const reader: ReadableStreamDefaultReader<Uint8Array> = response.body.getReader();
 
         const lambda = async (message: ReadableStreamReadResult<Uint8Array>): Promise<void> => {
+    
+            const streamedResponsesString = this.decoder.decode(message.value, { stream: true });
+
+            try {
+                await this.processMessage(streamedResponsesString);
+            }
+            catch (e:any) {
+                this.reportErrorString(`Encountered error ${e} while processing ${message}`)
+                throw e
+            }
+
             if (message.done) {
                 return;
             }
 
-            await this.processMessage(message);
             return reader.read().then(lambda);
         };
 
         await reader.read().then(lambda);
 
     } catch (e:any) {
-        this.reportErrorString(
+        throw new Error(await this.reportErrorString(
             'Error while initiating streaming response',
-            e.toString()
-        );
+            e.message || e.detail
+        ));
     } finally {
         abortHandler.reset()
     }
