@@ -130,6 +130,7 @@ function IOStackClientConstructor(args) {
     this.llmStatsHandlers = [];
     this.errorHandlers = [];
     this.useCaseNotificationHandlers = [];
+    this.debugNotificationHandlers = [];
     this.useCaseActiveNodeChangeNotificationHandlers = [];
     this.useCaseStreamedReferenceNotificationHandlers = [];
     this.stream_post_data_addenda = {};
@@ -163,6 +164,7 @@ function IOStackClientConstructor(args) {
         this.llmStatsHandlers = [];
         this.errorHandlers = [];
         this.useCaseNotificationHandlers = [];
+        this.debugNotificationHandlers = [];
         this.useCaseActiveNodeChangeNotificationHandlers = [];
         this.useCaseStreamedReferenceNotificationHandlers = [];
     };
@@ -177,6 +179,9 @@ function IOStackClientConstructor(args) {
     };
     this.registerUseCaseNotificationHandler = function (h) {
         this.useCaseNotificationHandlers.push(h);
+    };
+    this.registerDebugNotificationHandler = function (h) {
+        this.debugNotificationHandlers.push(h);
     };
     this.registerUseCaseStreamReferenceNotificationHandler = function (h) {
         this.useCaseStreamedReferenceNotificationHandlers.push(h);
@@ -233,6 +238,9 @@ function IOStackClientConstructor(args) {
                 case 'use_case_notification':
                     yield this.handleUseCaseNotification(streamedResponse);
                     break;
+                case 'debug':
+                    yield this.handleDebugNotification(streamedResponse);
+                    break;
                 case 'streamed_ref':
                     yield this.handleUseCaseStreamedReferenceNotification(streamedResponse);
                     break;
@@ -250,6 +258,11 @@ function IOStackClientConstructor(args) {
                 default:
                     yield this.handleExternalUseCaseNotification(result);
             }
+        });
+    };
+    this.handleDebugNotification = function (result) {
+        return __awaiter(this, void 0, void 0, function* () {
+            yield this.handleExternalDebugNotification(result);
         });
     };
     this.establishSession = function () {
@@ -460,6 +473,13 @@ function IOStackClientConstructor(args) {
     this.handleExternalUseCaseNotification = function (notification) {
         return __awaiter(this, void 0, void 0, function* () {
             this.useCaseNotificationHandlers.forEach((h) => __awaiter(this, void 0, void 0, function* () {
+                yield h(notification);
+            }));
+        });
+    };
+    this.handleExternalDebugNotification = function (notification) {
+        return __awaiter(this, void 0, void 0, function* () {
+            this.debugNotificationHandlers.forEach((h) => __awaiter(this, void 0, void 0, function* () {
                 yield h(notification);
             }));
         });
