@@ -42,6 +42,10 @@ export interface SessionStateUpdateNotificationPacket extends UseCaseNotificatio
     data: Record<string, any>;
 }
 
+export interface DebugNotificationPacket extends UseCaseNotificationPacket {
+    data: Record<string, any>;
+}
+
 export interface UseCaseActiveNodeChangePayload {
     active_node: string
     active_node_code: string
@@ -61,7 +65,8 @@ export type StreamFragmentHandler = (fragment: StreamFragmentPacket) => Promise<
 export type ErrorHandler = (error: string) => Promise<void>
 export type LLMStatsHandler = (stats: LLMStatsPacket) => Promise<void>
 
-export type UseCaseNoficationHandler = (notification: UseCaseNotificationPacket) => Promise<void>
+export type UseCaseNotificationHandler = (notification: UseCaseNotificationPacket) => Promise<void>
+export type DebugNotificationHandler = (notification: DebugNotificationPacket) => Promise<void>
 export type UseCaseActiveNodeChangeNotificationHandler = (notification: UseCaseActiveNodeChangeNotification) => Promise<void>
 export type StreamedReferenceNotificationHandler = (notification: StreamedReferenceNotificationPacket) => Promise<void>
 
@@ -97,8 +102,8 @@ export interface IOStackClient {
     streamFragmentHandlers:StreamFragmentHandler[];
     llmStatsHandlers:LLMStatsHandler[];
     errorHandlers:ErrorHandler[];
-    useCaseNotificationHandlers:UseCaseNoficationHandler[];
-    debugNotificationHandlers:UseCaseNoficationHandler[];
+    useCaseNotificationHandlers:UseCaseNotificationHandler[];
+    debugNotificationHandlers:DebugNotificationHandler[];
     useCaseActiveNodeChangeNotificationHandlers:UseCaseActiveNodeChangeNotificationHandler[];
     useCaseStreamedReferenceNotificationHandlers:StreamedReferenceNotificationHandler[];
     metadata_list:string[];
@@ -110,8 +115,8 @@ export interface IOStackClient {
     registerStreamFragmentHandler(h: StreamFragmentHandler): void;
     registerLLMStatsHandler(h: LLMStatsHandler): void;
     registerErrorHandler(h: ErrorHandler): void;
-    registerUseCaseNotificationHandler(h: UseCaseNoficationHandler): void;
-    registerDebugNotificationHandler(h: UseCaseNoficationHandler): void;
+    registerUseCaseNotificationHandler(h: UseCaseNotificationHandler): void;
+    registerDebugNotificationHandler(h: DebugNotificationHandler): void;
     registerUseCaseStreamReferenceNotificationHandler(h: StreamedReferenceNotificationHandler): void;
     registerUseCaseActiveNodeChangeNotificationHandler(h: UseCaseActiveNodeChangeNotificationHandler): void;
 
@@ -132,13 +137,13 @@ export interface IOStackClient {
 
     handleStreamingResponse(streamedResponseString: string): Promise<void>;
     handleUseCaseNotification(result: UseCaseNotificationPacket): Promise<void>;
-    handleDebugNotification(result: UseCaseNotificationPacket): Promise<void>;
+    handleDebugNotification(result: DebugNotificationPacket): Promise<void>;
 
     handleStreamedFragment(fragment: StreamFragmentPacket): Promise<void>;
     handleLLMStats(stats: LLMStatsPacket): Promise<void>;
     handleError(error: string): Promise<void>;
     handleExternalUseCaseNotification(notification: UseCaseNotificationPacket): Promise<void>;
-    handleExternalDebugNotification(notification: UseCaseNotificationPacket): Promise<void>;
+    handleExternalDebugNotification(notification: DebugNotificationPacket): Promise<void>;
     handleUseCaseStreamedReferenceNotification(notification: StreamedReferenceNotificationPacket): Promise<void>;
     handleActiveNodeChange(notification: UseCaseActiveNodeChangeNotification): Promise<void>;
 
@@ -229,11 +234,11 @@ export function IOStackClientConstructor (
         this.errorHandlers.push(h)
     }
 
-    this.registerUseCaseNotificationHandler = function(h: UseCaseNoficationHandler): void {
+    this.registerUseCaseNotificationHandler = function(h: UseCaseNotificationHandler): void {
         this.useCaseNotificationHandlers.push(h)
     }
 
-    this.registerDebugNotificationHandler = function(h: UseCaseNoficationHandler): void {
+    this.registerDebugNotificationHandler = function(h: DebugNotificationHandler): void {
         this.debugNotificationHandlers.push(h)
     }
 
@@ -307,7 +312,7 @@ export function IOStackClientConstructor (
                 break;
 
             case 'debug':
-                await this.handleDebugNotification(streamedResponse as UseCaseNotificationPacket);
+                await this.handleDebugNotification(streamedResponse as DebugNotificationPacket);
                 break;
     
             case 'streamed_ref':
@@ -333,7 +338,7 @@ export function IOStackClientConstructor (
         }
     }
 
-    this.handleDebugNotification = async function(result: UseCaseNotificationPacket): Promise<void> {
+    this.handleDebugNotification = async function(result: DebugNotificationPacket): Promise<void> {
         await this.handleExternalDebugNotification(result);
     }
 
@@ -619,7 +624,7 @@ export function IOStackClientConstructor (
         })
     }
 
-    this.handleExternalDebugNotification = async function(notification: UseCaseNotificationPacket): Promise<void> {
+    this.handleExternalDebugNotification = async function(notification: DebugNotificationPacket): Promise<void> {
         this.debugNotificationHandlers.forEach(async h => {
             await h(notification)
         })

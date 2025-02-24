@@ -25,6 +25,9 @@ export interface StreamedReferenceNotificationPacket extends ClientNotificationP
 export interface SessionStateUpdateNotificationPacket extends UseCaseNotificationPacket {
     data: Record<string, any>;
 }
+export interface DebugNotificationPacket extends UseCaseNotificationPacket {
+    data: Record<string, any>;
+}
 export interface UseCaseActiveNodeChangePayload {
     active_node: string;
     active_node_code: string;
@@ -40,7 +43,8 @@ export interface StreamingErrorPacket extends ClientNotificationPacket {
 export type StreamFragmentHandler = (fragment: StreamFragmentPacket) => Promise<void>;
 export type ErrorHandler = (error: string) => Promise<void>;
 export type LLMStatsHandler = (stats: LLMStatsPacket) => Promise<void>;
-export type UseCaseNoficationHandler = (notification: UseCaseNotificationPacket) => Promise<void>;
+export type UseCaseNotificationHandler = (notification: UseCaseNotificationPacket) => Promise<void>;
+export type DebugNotificationHandler = (notification: DebugNotificationPacket) => Promise<void>;
 export type UseCaseActiveNodeChangeNotificationHandler = (notification: UseCaseActiveNodeChangeNotification) => Promise<void>;
 export type StreamedReferenceNotificationHandler = (notification: StreamedReferenceNotificationPacket) => Promise<void>;
 export declare class IOStackAbortHandler {
@@ -59,8 +63,8 @@ export interface IOStackClient {
     streamFragmentHandlers: StreamFragmentHandler[];
     llmStatsHandlers: LLMStatsHandler[];
     errorHandlers: ErrorHandler[];
-    useCaseNotificationHandlers: UseCaseNoficationHandler[];
-    debugNotificationHandlers: UseCaseNoficationHandler[];
+    useCaseNotificationHandlers: UseCaseNotificationHandler[];
+    debugNotificationHandlers: DebugNotificationHandler[];
     useCaseActiveNodeChangeNotificationHandlers: UseCaseActiveNodeChangeNotificationHandler[];
     useCaseStreamedReferenceNotificationHandlers: StreamedReferenceNotificationHandler[];
     metadata_list: string[];
@@ -71,8 +75,8 @@ export interface IOStackClient {
     registerStreamFragmentHandler(h: StreamFragmentHandler): void;
     registerLLMStatsHandler(h: LLMStatsHandler): void;
     registerErrorHandler(h: ErrorHandler): void;
-    registerUseCaseNotificationHandler(h: UseCaseNoficationHandler): void;
-    registerDebugNotificationHandler(h: UseCaseNoficationHandler): void;
+    registerUseCaseNotificationHandler(h: UseCaseNotificationHandler): void;
+    registerDebugNotificationHandler(h: DebugNotificationHandler): void;
     registerUseCaseStreamReferenceNotificationHandler(h: StreamedReferenceNotificationHandler): void;
     registerUseCaseActiveNodeChangeNotificationHandler(h: UseCaseActiveNodeChangeNotificationHandler): void;
     getTriggerPrompt(): string;
@@ -86,12 +90,12 @@ export interface IOStackClient {
     processMessage(message: string): Promise<void>;
     handleStreamingResponse(streamedResponseString: string): Promise<void>;
     handleUseCaseNotification(result: UseCaseNotificationPacket): Promise<void>;
-    handleDebugNotification(result: UseCaseNotificationPacket): Promise<void>;
+    handleDebugNotification(result: DebugNotificationPacket): Promise<void>;
     handleStreamedFragment(fragment: StreamFragmentPacket): Promise<void>;
     handleLLMStats(stats: LLMStatsPacket): Promise<void>;
     handleError(error: string): Promise<void>;
     handleExternalUseCaseNotification(notification: UseCaseNotificationPacket): Promise<void>;
-    handleExternalDebugNotification(notification: UseCaseNotificationPacket): Promise<void>;
+    handleExternalDebugNotification(notification: DebugNotificationPacket): Promise<void>;
     handleUseCaseStreamedReferenceNotification(notification: StreamedReferenceNotificationPacket): Promise<void>;
     handleActiveNodeChange(notification: UseCaseActiveNodeChangeNotification): Promise<void>;
     refreshAccessToken(): Promise<void>;
