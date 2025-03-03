@@ -20,6 +20,7 @@ export interface UseCaseNotificationPacket extends ClientNotificationPacket {
     name: string;
 }
 export interface StreamedReferenceNotificationPacket extends ClientNotificationPacket {
+    ref: string;
     name: string;
     value: Record<string, any>;
 }
