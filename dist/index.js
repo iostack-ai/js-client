@@ -267,7 +267,7 @@ function IOStackClientConstructor(args) {
     };
     this.establishSession = function () {
         return __awaiter(this, void 0, void 0, function* () {
-            console.log("Establishing session");
+            // console.log("Establishing session")
             const headers = new Headers();
             headers.append('Content-Type', 'application/json');
             headers.set('Authorization', 'Bearer ' + getAccessKey());
@@ -301,7 +301,7 @@ function IOStackClientConstructor(args) {
     };
     this.retrieveAccessToken = function () {
         return __awaiter(this, void 0, void 0, function* () {
-            console.log(`Retrieving access token for session ${this.session_id}`);
+            // console.log(`Retrieving access token for session ${this.session_id}`);
             if (!this.session_id) {
                 throw new Error(yield this.reportErrorString("Error retrieving access token", "Session has not yet been established"));
             }
@@ -333,7 +333,7 @@ function IOStackClientConstructor(args) {
     };
     this.refreshAccessToken = function () {
         return __awaiter(this, void 0, void 0, function* () {
-            console.log(`Refreshing access token for session ${this.session_id}`);
+            // console.log(`Refreshing access token for session ${this.session_id}`);
             if (!this.session_id) {
                 throw new Error(yield this.reportErrorString("Error refreshing access token", "Session has not yet been established"));
             }
@@ -365,7 +365,7 @@ function IOStackClientConstructor(args) {
     };
     this.refreshRefreshToken = function () {
         return __awaiter(this, void 0, void 0, function* () {
-            console.log(`Refreshing refresh token for session ${this.session_id}`);
+            // console.log(`Refreshing refresh token for session ${this.session_id}`);
             if (!this.session_id) {
                 throw new Error(yield this.reportErrorString("Error refreshing refresh token", "Session has not yet been established"));
             }
@@ -401,7 +401,7 @@ function IOStackClientConstructor(args) {
     };
     this.retrieveUseCaseMetaData = function () {
         return __awaiter(this, void 0, void 0, function* () {
-            console.log('Fetching use case metadata');
+            // console.log('Fetching use case metadata');
             const headers = yield this.getHeaders();
             const abortHandler = new IOStackAbortHandler(30 * 1000);
             let url = this.platform_root + '/v1/use_case/meta';
