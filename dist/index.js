@@ -230,7 +230,7 @@ function IOStackClientConstructor(args) {
                     yield this.handleStreamedFragment(streamedResponse);
                     break;
                 case 'error':
-                    yield this.handleError(streamedResponse.error);
+                    yield this.handleError(streamedResponse.message);
                     break;
                 case 'llm_stats':
                     yield this.handleLLMStats(streamedResponse);
