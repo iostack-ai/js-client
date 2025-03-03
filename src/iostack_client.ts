@@ -301,7 +301,7 @@ export function IOStackClientConstructor (
                 break;
 
             case 'error':
-                await this.handleError((streamedResponse as StreamingErrorPacket).error);
+                await this.handleError((streamedResponse as StreamingErrorPacket).message);
                 break;
 
             case 'llm_stats':
