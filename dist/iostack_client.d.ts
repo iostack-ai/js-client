@@ -14,6 +14,7 @@ export interface LLMStatsPacket extends ClientNotificationPacket {
     total_tokens: number;
     prompt_tokens: number;
     completion_tokens: number;
+    cached_tokens: number;
 }
 export interface UseCaseNotificationPacket extends ClientNotificationPacket {
     name: string;
