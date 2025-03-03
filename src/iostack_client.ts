@@ -345,7 +345,7 @@ export function IOStackClientConstructor (
 
     this.establishSession = async function(): Promise<void> {
 
-        console.log("Establishing session")
+        // console.log("Establishing session")
 
         const headers = new Headers();
         headers.append('Content-Type', 'application/json');
@@ -394,7 +394,7 @@ export function IOStackClientConstructor (
 
     this.retrieveAccessToken = async function(): Promise<void> {
         
-        console.log(`Retrieving access token for session ${this.session_id}`);
+        // console.log(`Retrieving access token for session ${this.session_id}`);
 
         if(!this.session_id) {
             throw new Error(await this.reportErrorString("Error retrieving access token", "Session has not yet been established"))
@@ -439,7 +439,7 @@ export function IOStackClientConstructor (
 
     this.refreshAccessToken = async function(): Promise<void> {
 
-        console.log(`Refreshing access token for session ${this.session_id}`);
+        // console.log(`Refreshing access token for session ${this.session_id}`);
 
         if(!this.session_id) {
             throw new Error(await this.reportErrorString("Error refreshing access token", "Session has not yet been established"))
@@ -486,7 +486,7 @@ export function IOStackClientConstructor (
 
     this.refreshRefreshToken = async function(): Promise<void> {
 
-        console.log(`Refreshing refresh token for session ${this.session_id}`);
+        // console.log(`Refreshing refresh token for session ${this.session_id}`);
 
         if(!this.session_id) {
             throw new Error(await this.reportErrorString("Error refreshing refresh token", "Session has not yet been established"))
@@ -537,7 +537,7 @@ export function IOStackClientConstructor (
 
     this.retrieveUseCaseMetaData = async function(): Promise<void> {
 
-        console.log('Fetching use case metadata');
+        // console.log('Fetching use case metadata');
 
         const headers = await this.getHeaders();
 
