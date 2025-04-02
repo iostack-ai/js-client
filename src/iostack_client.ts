@@ -730,7 +730,7 @@ IOStackClientConstructor.prototype.sendMessageAndStreamResponse = async function
             return reader.read().then(lambda);
         };
 
-        await reader.read().then(lambda);
+        return await reader.read().then(lambda);
 
     } catch (e:any) {
         throw new Error(await this.reportErrorString(

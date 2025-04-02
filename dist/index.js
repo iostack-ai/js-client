@@ -568,7 +568,7 @@ IOStackClientConstructor.prototype.sendMessageAndStreamResponse = function (mess
                 }
                 return reader.read().then(lambda);
             });
-            yield reader.read().then(lambda);
+            return yield reader.read().then(lambda);
         }
         catch (e) {
             throw new Error(yield this.reportErrorString('Error while initiating streaming response', e.message || e.detail));
