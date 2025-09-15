@@ -1,116 +1,70 @@
-interface ClientNotificationPacket {
-    type: string;
-}
-export interface StreamFragmentPacket extends ClientNotificationPacket {
-    fragment: string;
-    final: boolean;
-}
-export interface EntityReferencePacket extends ClientNotificationPacket {
-    name: string;
-    value: Record<string, any>;
-}
-export interface LLMStatsPacket extends ClientNotificationPacket {
-    total_cost: number;
-    total_tokens: number;
-    prompt_tokens: number;
-    completion_tokens: number;
-    cached_tokens: number;
-}
-export interface UseCaseNotificationPacket extends ClientNotificationPacket {
-    name: string;
-}
-export interface StreamedReferenceNotificationPacket extends ClientNotificationPacket {
-    ref: string;
-    name: string;
-    value: Record<string, any>;
-}
-export interface SessionStateUpdateNotificationPacket extends UseCaseNotificationPacket {
-    data: Record<string, any>;
-}
-export interface DebugNotificationPacket extends UseCaseNotificationPacket {
-    data: Record<string, any>;
-}
-export interface UseCaseActiveNodeChangePayload {
-    active_node: string;
-    active_node_code: string;
-    assembly?: Record<string, any> | undefined;
-}
-export interface UseCaseActiveNodeChangeNotification extends ClientNotificationPacket {
-    data: UseCaseActiveNodeChangePayload;
-}
-export interface StreamingErrorPacket extends ClientNotificationPacket {
-    error: string;
-    message: string;
-}
+import { StreamedReferenceNotificationPacket, StreamFragmentPacket, UseCaseActiveNodeChangeNotification, UseCaseNotificationPacket } from './notifications';
 export type StreamFragmentHandler = (fragment: StreamFragmentPacket) => Promise<void>;
 export type ErrorHandler = (error: string) => Promise<void>;
-export type LLMStatsHandler = (stats: LLMStatsPacket) => Promise<void>;
-export type UseCaseNotificationHandler = (notification: UseCaseNotificationPacket) => Promise<void>;
-export type DebugNotificationHandler = (notification: DebugNotificationPacket) => Promise<void>;
-export type UseCaseActiveNodeChangeNotificationHandler = (notification: UseCaseActiveNodeChangeNotification) => Promise<void>;
-export type StreamedReferenceNotificationHandler = (notification: StreamedReferenceNotificationPacket) => Promise<void>;
-export declare class IOStackAbortHandler {
-    private controller;
-    private signal;
-    private timeoutId;
-    constructor(timeoutInMillis: number);
-    getSignal(): AbortSignal;
-    reset(): void;
-}
-export interface IOStackClient {
-    platform_root: string;
-    stream_post_data_addenda: {};
-    use_case_data: {};
-    session_id: string | null;
-    streamFragmentHandlers: StreamFragmentHandler[];
-    llmStatsHandlers: LLMStatsHandler[];
-    errorHandlers: ErrorHandler[];
-    useCaseNotificationHandlers: UseCaseNotificationHandler[];
-    debugNotificationHandlers: DebugNotificationHandler[];
-    useCaseActiveNodeChangeNotificationHandlers: UseCaseActiveNodeChangeNotificationHandler[];
-    useCaseStreamedReferenceNotificationHandlers: StreamedReferenceNotificationHandler[];
-    metadata_list: string[];
-    decoder: TextDecoder;
-    metadata: Record<string, any> | null;
-    runningBuffer: string;
-    deregisterAllHandlers(): void;
-    registerStreamFragmentHandler(h: StreamFragmentHandler): void;
-    registerLLMStatsHandler(h: LLMStatsHandler): void;
-    registerErrorHandler(h: ErrorHandler): void;
-    registerUseCaseNotificationHandler(h: UseCaseNotificationHandler): void;
-    registerDebugNotificationHandler(h: DebugNotificationHandler): void;
-    registerUseCaseStreamReferenceNotificationHandler(h: StreamedReferenceNotificationHandler): void;
-    registerUseCaseActiveNodeChangeNotificationHandler(h: UseCaseActiveNodeChangeNotificationHandler): void;
-    getTriggerPrompt(): string;
-    startSession(): Promise<void>;
-    sendMessageAndStreamResponse(message: string): Promise<void>;
-    reportError(response: Response): Promise<string>;
-    getHeaders(): Promise<Headers>;
-    establishSession(): Promise<void>;
-    retrieveAccessToken(): Promise<void>;
-    setRefreshToken(i: string): void;
-    processMessage(message: string): Promise<void>;
-    handleStreamingResponse(streamedResponseString: string): Promise<void>;
-    handleUseCaseNotification(result: UseCaseNotificationPacket): Promise<void>;
-    handleDebugNotification(result: DebugNotificationPacket): Promise<void>;
-    handleStreamedFragment(fragment: StreamFragmentPacket): Promise<void>;
-    handleLLMStats(stats: LLMStatsPacket): Promise<void>;
-    handleError(error: string): Promise<void>;
-    handleExternalUseCaseNotification(notification: UseCaseNotificationPacket): Promise<void>;
-    handleExternalDebugNotification(notification: DebugNotificationPacket): Promise<void>;
-    handleUseCaseStreamedReferenceNotification(notification: StreamedReferenceNotificationPacket): Promise<void>;
-    handleActiveNodeChange(notification: UseCaseActiveNodeChangeNotification): Promise<void>;
-    refreshAccessToken(): Promise<void>;
-    refreshRefreshToken(): Promise<void>;
-    retrieveUseCaseMetaData(): Promise<void>;
-    reportErrorString(error: string, message: string): Promise<string>;
-}
-export type ClientConstructorArgs = {
+export type UseCaseNoficationHandler = (notification: UseCaseNotificationPacket) => Promise<void>;
+export type ActiveNodeChangeNotificationHandler = (notification: UseCaseActiveNodeChangeNotification) => Promise<void>;
+export type ReferenceNotificationHandler = (notification: StreamedReferenceNotificationPacket) => Promise<void>;
+export interface ClientConstructorArgs {
     access_key: string;
     use_case_data?: Record<string, any> | undefined;
+    user_id?: string | undefined;
     platform_root?: string | undefined;
-    metadata_list?: string[] | undefined;
-};
-export declare function newIOStackClient(args: ClientConstructorArgs): IOStackClient;
-export declare function IOStackClientConstructor(this: IOStackClient, args: ClientConstructorArgs): void;
-export {};
+    response_timeout?: number | undefined;
+}
+export declare class IOStackClient {
+    #private;
+    private platform_root;
+    private session_id;
+    private use_case_data;
+    private user_id;
+    private streamFragmentHandlers;
+    private errorHandlers;
+    private useCaseNotificationHandlers;
+    private useCaseActiveNodeChangeNotificationHandlers;
+    private useCaseStreamedReferenceNotificationHandlers;
+    private decoder;
+    private metadata;
+    private runningBuffer;
+    private response_timeout;
+    constructor({ access_key, use_case_data, user_id, platform_root, response_timeout, }: ClientConstructorArgs);
+    getSessionId(): string | null;
+    deregisterAllHandlers(): void;
+    startSession(sessionId?: string | undefined): Promise<void>;
+    restartSession(sessionId?: string | undefined): Promise<void>;
+    sendMessage(message: string): Promise<void>;
+    getTriggerPrompt(): string;
+    private getHeaders;
+    private processSSEMessage;
+    private handleStreamingResponse;
+    private handleUseCaseNotification;
+    private establishSession;
+    private retrieveAccessToken;
+    private refreshAccessToken;
+    private refreshRefreshToken;
+    private retrieveUseCaseMetaData;
+    private calcAndSaveAccessTokenRefreshTime;
+    private calcAndSaveRefreshTokenRefreshTime;
+    addStreamFragmentHandler(i: StreamFragmentHandler): void;
+    private onStreamedFragment;
+    addErrorHandler(i: ErrorHandler): void;
+    private onError;
+    addUseCaseNotificationHandler(i: UseCaseNoficationHandler): void;
+    private onUseCaseNotification;
+    addStreamedReferenceHandler(i: ReferenceNotificationHandler): void;
+    private onStreamedReference;
+    addActiveNodeChangeHandler(i: ActiveNodeChangeNotificationHandler): void;
+    private onActiveNodeChange;
+    private reportError;
+    private reportErrorString;
+    private setRefreshToken;
+    private getRefreshToken;
+    private setAccessToken;
+    private getAccessToken;
+    private getAccessKey;
+    private setAccessTokenRefreshTime;
+    private accessTokenRetrieved;
+    private accessTokenExpired;
+    private setRefreshTokenRefreshTime;
+    private refreshTokenExpired;
+    private updateRefreshToken;
+}

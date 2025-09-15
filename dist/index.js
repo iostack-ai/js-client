@@ -46,18 +46,6 @@ module.exports = __WEBPACK_EXTERNAL_MODULE__372__;
 /******/ 	}
 /******/ 	
 /************************************************************************/
-/******/ 	/* webpack/runtime/compat get default export */
-/******/ 	(() => {
-/******/ 		// getDefaultExport function for compatibility with non-harmony modules
-/******/ 		__webpack_require__.n = (module) => {
-/******/ 			var getter = module && module.__esModule ?
-/******/ 				() => (module['default']) :
-/******/ 				() => (module);
-/******/ 			__webpack_require__.d(getter, { a: getter });
-/******/ 			return getter;
-/******/ 		};
-/******/ 	})();
-/******/ 	
 /******/ 	/* webpack/runtime/define property getters */
 /******/ 	(() => {
 /******/ 		// define getter functions for harmony exports
@@ -88,25 +76,21 @@ module.exports = __WEBPACK_EXTERNAL_MODULE__372__;
 /******/ 	
 /************************************************************************/
 var __webpack_exports__ = {};
+// ESM COMPAT FLAG
 __webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   IOStackAbortHandler: () => (/* binding */ IOStackAbortHandler),
-/* harmony export */   IOStackClientConstructor: () => (/* binding */ IOStackClientConstructor),
-/* harmony export */   newIOStackClient: () => (/* binding */ newIOStackClient)
-/* harmony export */ });
-/* harmony import */ var jwt_decode__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(372);
-/* harmony import */ var jwt_decode__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(jwt_decode__WEBPACK_IMPORTED_MODULE_0__);
-var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 
+// EXPORTS
+__webpack_require__.d(__webpack_exports__, {
+  IOStackClient: () => (/* binding */ IOStackClient)
+});
+
+// EXTERNAL MODULE: external {"commonjs":"jwt-decode","commonjs2":"jwt-decode","amd":"jwt-decode","root":"jwt_decode"}
+var external_commonjs_jwt_decode_commonjs2_jwt_decode_amd_jwt_decode_root_jwt_decode_ = __webpack_require__(372);
+;// ./src/aborthandler.ts
 class IOStackAbortHandler {
+    controller;
+    signal;
+    timeoutId;
     constructor(timeoutInMillis) {
         this.controller = new AbortController();
         this.signal = this.controller.signal;
@@ -119,465 +103,483 @@ class IOStackAbortHandler {
         clearTimeout(this.timeoutId);
     }
 }
-function newIOStackClient(args) {
-    return new IOStackClientConstructor(args);
-}
-function IOStackClientConstructor(args) {
-    this.platform_root = args.platform_root || "https://platform.iostack.ai";
-    this.use_case_data = args.use_case_data || {};
-    this.session_id = null;
-    this.streamFragmentHandlers = [];
-    this.llmStatsHandlers = [];
-    this.errorHandlers = [];
-    this.useCaseNotificationHandlers = [];
-    this.debugNotificationHandlers = [];
-    this.useCaseActiveNodeChangeNotificationHandlers = [];
-    this.useCaseStreamedReferenceNotificationHandlers = [];
-    this.stream_post_data_addenda = {};
-    this.metadata_list = args.metadata_list || ["trigger_phrase"];
-    this.decoder = new TextDecoder();
-    this.metadata = null;
-    this.runningBuffer = "";
-    // Set up a closure for sensitive data
-    const closure = {
-        refresh_token: "",
-        access_token: "",
-        access_key: args.access_key,
-        access_token_refresh_time: new Date(0),
-        refresh_token_refresh_time: new Date(0)
-    };
-    const setRefreshToken = function (i) { closure.refresh_token = i; };
-    const getRefreshToken = function () { return closure.refresh_token; };
-    const setAccessToken = function (i) { closure.access_token = i; };
-    const getAccessToken = function () { return closure.access_token; };
-    const getAccessKey = function () { return closure.access_key; };
-    const setAccessTokenRefreshTime = function (i) { closure.access_token_refresh_time = i; };
-    const accessTokenExpired = function () { return !!closure.access_token_refresh_time && new Date(Date.now()) >= closure.access_token_refresh_time; };
-    const setRefreshTokenRefreshTime = function (i) { closure.refresh_token_refresh_time = i; };
-    const refreshTokenExpired = function () { return !!closure.refresh_token_refresh_time && new Date(Date.now()) >= closure.refresh_token_refresh_time; };
-    this.setRefreshToken = function (i) {
-        setRefreshToken(i);
-        calcAndSaveRefreshTokenRefreshTime(i);
-    };
-    this.deregisterAllHandlers = function () {
+
+;// ./src/iostack_client.ts
+/* eslint-disable no-console */
+
+
+class IOStackClient {
+    // Hold all sensitive data here
+    #closure;
+    platform_root;
+    session_id;
+    use_case_data;
+    user_id;
+    // Notification packet handlers
+    streamFragmentHandlers;
+    errorHandlers;
+    useCaseNotificationHandlers;
+    useCaseActiveNodeChangeNotificationHandlers;
+    useCaseStreamedReferenceNotificationHandlers;
+    decoder;
+    metadata;
+    runningBuffer = "";
+    response_timeout;
+    constructor({ access_key, use_case_data, user_id, platform_root, response_timeout, }) {
+        this.platform_root = platform_root || 'https://platform.iostack.ai';
+        this.use_case_data = use_case_data || {};
+        this.user_id = user_id || null;
+        this.session_id = null;
         this.streamFragmentHandlers = [];
-        this.llmStatsHandlers = [];
         this.errorHandlers = [];
         this.useCaseNotificationHandlers = [];
-        this.debugNotificationHandlers = [];
         this.useCaseActiveNodeChangeNotificationHandlers = [];
         this.useCaseStreamedReferenceNotificationHandlers = [];
-    };
-    this.registerStreamFragmentHandler = function (h) {
-        this.streamFragmentHandlers.push(h);
-    };
-    this.registerLLMStatsHandler = function (h) {
-        this.llmStatsHandlers.push(h);
-    };
-    this.registerErrorHandler = function (h) {
-        this.errorHandlers.push(h);
-    };
-    this.registerUseCaseNotificationHandler = function (h) {
-        this.useCaseNotificationHandlers.push(h);
-    };
-    this.registerDebugNotificationHandler = function (h) {
-        this.debugNotificationHandlers.push(h);
-    };
-    this.registerUseCaseStreamReferenceNotificationHandler = function (h) {
-        this.useCaseStreamedReferenceNotificationHandlers.push(h);
-    };
-    this.registerUseCaseActiveNodeChangeNotificationHandler = function (h) {
-        this.useCaseActiveNodeChangeNotificationHandlers.push(h);
-    };
-    this.getTriggerPrompt = function () {
-        if (!this.metadata) {
-            throw new Error("Can't retrieve trigger prompt - Metadata not retrieved");
+        this.decoder = new TextDecoder();
+        this.metadata = {};
+        this.runningBuffer = "";
+        this.response_timeout = response_timeout || 30;
+        // Set up #private data for sensitive details
+        this.#closure = {
+            refresh_token: '',
+            access_token: '',
+            access_key,
+            access_token_refresh_time: new Date(0),
+            refresh_token_refresh_time: new Date(0),
+        };
+    }
+    getSessionId() {
+        return this.session_id;
+    }
+    deregisterAllHandlers() {
+        this.streamFragmentHandlers = [];
+        this.errorHandlers = [];
+        this.useCaseNotificationHandlers = [];
+        this.useCaseActiveNodeChangeNotificationHandlers = [];
+        this.useCaseStreamedReferenceNotificationHandlers = [];
+    }
+    async startSession(sessionId = undefined) {
+        await this.restartSession(sessionId);
+        await this.sendMessage(this.metadata.trigger_phrase || '-'); // Send blank input to trigger first response
+    }
+    async restartSession(sessionId = undefined) {
+        this.session_id = null;
+        this.metadata = {};
+        if (sessionId) {
+            this.session_id = sessionId;
+            await this.retrieveAccessToken();
+            await this.retrieveUseCaseMetaData();
         }
-        return this.metadata.trigger_phrase;
-    };
-    this.getHeaders = function () {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (refreshTokenExpired()) {
-                yield this.refreshRefreshToken();
-            }
-            if (accessTokenExpired()) {
-                yield this.refreshAccessToken();
-            }
-            const headers = new Headers();
-            headers.append('Content-Type', 'application/json');
-            headers.set('Authorization', 'Bearer ' + getAccessToken());
-            return headers;
-        });
-    };
-    this.processMessage = function (streamedResponsesString) {
-        return __awaiter(this, void 0, void 0, function* () {
-            this.runningBuffer += streamedResponsesString;
-            let delimIndex = this.runningBuffer.indexOf('__|__');
-            while (delimIndex != -1) {
-                yield this.handleStreamingResponse(this.runningBuffer.slice(0, delimIndex));
-                this.runningBuffer = this.runningBuffer.substring(delimIndex + '__|__'.length);
-                delimIndex = this.runningBuffer.indexOf('__|__');
-            }
-        });
-    };
-    this.handleStreamingResponse = function (streamedResponseString) {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (!streamedResponseString)
-                return;
-            const streamedResponse = JSON.parse(streamedResponseString);
-            switch (streamedResponse.type) {
-                case 'fragment':
-                    yield this.handleStreamedFragment(streamedResponse);
-                    break;
-                case 'error':
-                    yield this.handleError(streamedResponse.message);
-                    break;
-                case 'llm_stats':
-                    yield this.handleLLMStats(streamedResponse);
-                    break;
-                case 'use_case_notification':
-                    yield this.handleUseCaseNotification(streamedResponse);
-                    break;
-                case 'debug':
-                    yield this.handleDebugNotification(streamedResponse);
-                    break;
-                case 'streamed_ref':
-                    yield this.handleUseCaseStreamedReferenceNotification(streamedResponse);
-                    break;
-                default:
-                    console.log('Unknown streaming packet seen:\n' + streamedResponseString);
-            }
-        });
-    };
-    this.handleUseCaseNotification = function (result) {
-        return __awaiter(this, void 0, void 0, function* () {
-            switch (result.name) {
-                case 'graph_active_node_change':
-                    yield this.handleActiveNodeChange(result);
-                    break;
-                default:
-                    yield this.handleExternalUseCaseNotification(result);
-            }
-        });
-    };
-    this.handleDebugNotification = function (result) {
-        return __awaiter(this, void 0, void 0, function* () {
-            yield this.handleExternalDebugNotification(result);
-        });
-    };
-    this.establishSession = function () {
-        return __awaiter(this, void 0, void 0, function* () {
-            // console.log("Establishing session")
-            const headers = new Headers();
-            headers.append('Content-Type', 'application/json');
-            headers.set('Authorization', 'Bearer ' + getAccessKey());
-            const postBody = {
-                use_case_id: getAccessKey(),
-                client_data: this.use_case_data,
-            };
-            const url = this.platform_root + `/v1/use_case/session`;
-            const abortHandler = new IOStackAbortHandler(30 * 1000);
-            try {
-                const response = yield fetch(url, {
-                    method: 'POST',
-                    headers: headers,
-                    body: JSON.stringify(postBody),
-                    signal: abortHandler.getSignal()
-                });
-                if (!response.ok) {
-                    throw new Error(yield this.reportError(response));
-                }
-                const body = yield response.json();
-                this.setRefreshToken(body.refresh_token);
-                this.session_id = body.session_id;
-            }
-            catch (e) {
-                throw new Error(yield this.reportErrorString('Error while establishing response', e.message || e.detail));
-            }
-            finally {
-                abortHandler.reset();
-            }
-        });
-    };
-    this.retrieveAccessToken = function () {
-        return __awaiter(this, void 0, void 0, function* () {
-            // console.log(`Retrieving access token for session ${this.session_id}`);
-            if (!this.session_id) {
-                throw new Error(yield this.reportErrorString("Error retrieving access token", "Session has not yet been established"));
-            }
-            const headers = new Headers();
-            headers.append('Content-Type', 'application/json');
-            headers.set('Authorization', 'Bearer ' + getRefreshToken());
-            const abortHandler = new IOStackAbortHandler(30 * 1000);
-            try {
-                const response = yield fetch(this.platform_root + `/v1/use_case/session/${this.session_id}/access_token`, {
-                    method: 'POST',
-                    headers: headers,
-                    body: "{}",
-                    signal: abortHandler.getSignal()
-                });
-                if (!response.ok) {
-                    throw new Error(yield this.reportError(response));
-                }
-                const body = yield response.json();
-                setAccessToken(body.access_token);
-                calcAndSaveAccessTokenRefreshTime(body.access_token);
-            }
-            catch (e) {
-                throw new Error(yield this.reportErrorString('Error while retrieving access token', e.message || e.detail));
-            }
-            finally {
-                abortHandler.reset();
-            }
-        });
-    };
-    this.refreshAccessToken = function () {
-        return __awaiter(this, void 0, void 0, function* () {
-            // console.log(`Refreshing access token for session ${this.session_id}`);
-            if (!this.session_id) {
-                throw new Error(yield this.reportErrorString("Error refreshing access token", "Session has not yet been established"));
-            }
-            const headers = new Headers();
-            headers.append('Content-Type', 'application/json');
-            headers.set('Authorization', 'Bearer ' + getRefreshToken());
-            const abortHandler = new IOStackAbortHandler(30 * 1000);
-            try {
-                const response = yield fetch(this.platform_root + `/v1/use_case/session/${this.session_id}/access_token`, {
-                    method: 'POST',
-                    headers: headers,
-                    body: "{}",
-                    signal: abortHandler.getSignal()
-                });
-                if (!response.ok) {
-                    throw new Error(yield this.reportError(response));
-                }
-                const body = yield response.json();
-                setAccessToken(body.access_token);
-                calcAndSaveAccessTokenRefreshTime(body.access_token);
-            }
-            catch (e) {
-                throw new Error(yield this.reportErrorString('Error while refreshing access token', e.message || e.detail));
-            }
-            finally {
-                abortHandler.reset();
-            }
-        });
-    };
-    this.refreshRefreshToken = function () {
-        return __awaiter(this, void 0, void 0, function* () {
-            // console.log(`Refreshing refresh token for session ${this.session_id}`);
-            if (!this.session_id) {
-                throw new Error(yield this.reportErrorString("Error refreshing refresh token", "Session has not yet been established"));
-            }
-            const headers = new Headers();
-            headers.append('Content-Type', 'application/json');
-            headers.set('Authorization', 'Bearer ' + getAccessKey());
-            const postBody = {
-                use_case_id: getAccessKey(),
-                client_data: this.use_case_data,
-            };
-            const url = this.platform_root + `/v1/use_case/session/${this.session_id}/refresh_token`;
-            const abortHandler = new IOStackAbortHandler(30 * 1000);
-            try {
-                const response = yield fetch(url, {
-                    method: 'POST',
-                    headers: headers,
-                    body: JSON.stringify(postBody),
-                    signal: abortHandler.getSignal()
-                });
-                if (!response.ok) {
-                    throw new Error(yield this.reportError(response));
-                }
-                const body = yield response.json();
-                this.setRefreshToken(body.refresh_token);
-            }
-            catch (e) {
-                throw new Error(yield this.reportErrorString('Error while refreshing session refresh token', e.message || e.detail));
-            }
-            finally {
-                abortHandler.reset();
-            }
-        });
-    };
-    this.retrieveUseCaseMetaData = function () {
-        return __awaiter(this, void 0, void 0, function* () {
-            // console.log('Fetching use case metadata');
-            const headers = yield this.getHeaders();
-            const abortHandler = new IOStackAbortHandler(30 * 1000);
-            let url = this.platform_root + '/v1/use_case/meta';
-            if (this.metadata_list.length > 0)
-                url = `${url}?details=${this.metadata_list.join("&details=")}`;
-            try {
-                const response = yield fetch(url, {
-                    method: 'GET',
-                    headers: headers,
-                    signal: abortHandler.getSignal()
-                });
-                if (!response.ok) {
-                    throw new Error(yield this.reportError(response));
-                }
-                const body = yield response.json();
-                this.metadata = body.use_case;
-            }
-            catch (e) {
-                throw new Error(yield this.reportErrorString('Error while retrieving use case metadata', e.message || e.detail));
-            }
-            finally {
-                abortHandler.reset();
-            }
-        });
-    };
-    const calcAndSaveAccessTokenRefreshTime = function (access_token) {
-        const decoded = (0,jwt_decode__WEBPACK_IMPORTED_MODULE_0__.jwtDecode)(access_token);
-        if (!decoded.exp) {
-            throw new Error("Access Token JWT missing exp claim");
+        else {
+            await this.establishSession();
         }
-        const expiryTime = new Date(decoded.exp * 1000);
-        const now = Date.now();
-        const refresh_access_token_period = Math.floor((expiryTime.getTime() - now) * 0.7);
-        const refreshTime = new Date(now + refresh_access_token_period);
-        setAccessTokenRefreshTime(refreshTime);
-    };
-    const calcAndSaveRefreshTokenRefreshTime = function (refresh_token) {
-        const decoded = (0,jwt_decode__WEBPACK_IMPORTED_MODULE_0__.jwtDecode)(refresh_token);
-        if (!decoded.exp) {
-            throw new Error("Refresh Token JWT missing exp claim");
-        }
-        const expiryTime = new Date(decoded.exp * 1000);
-        const now = Date.now();
-        const refresh_refresh_token_period = Math.floor((expiryTime.getTime() - now) * 0.7);
-        const refreshTime = new Date(now + refresh_refresh_token_period);
-        setRefreshTokenRefreshTime(refreshTime);
-    };
-    this.handleStreamedFragment = function (fragment) {
-        return __awaiter(this, void 0, void 0, function* () {
-            this.streamFragmentHandlers.forEach((h) => __awaiter(this, void 0, void 0, function* () {
-                yield h(fragment);
-            }));
-        });
-    };
-    this.handleLLMStats = function (stats) {
-        return __awaiter(this, void 0, void 0, function* () {
-            this.llmStatsHandlers.forEach((h) => __awaiter(this, void 0, void 0, function* () {
-                yield h(stats);
-            }));
-        });
-    };
-    this.handleError = function (error) {
-        return __awaiter(this, void 0, void 0, function* () {
-            this.errorHandlers.forEach((h) => __awaiter(this, void 0, void 0, function* () {
-                yield h(error);
-            }));
-        });
-    };
-    this.handleExternalUseCaseNotification = function (notification) {
-        return __awaiter(this, void 0, void 0, function* () {
-            this.useCaseNotificationHandlers.forEach((h) => __awaiter(this, void 0, void 0, function* () {
-                yield h(notification);
-            }));
-        });
-    };
-    this.handleExternalDebugNotification = function (notification) {
-        return __awaiter(this, void 0, void 0, function* () {
-            this.debugNotificationHandlers.forEach((h) => __awaiter(this, void 0, void 0, function* () {
-                yield h(notification);
-            }));
-        });
-    };
-    this.handleUseCaseStreamedReferenceNotification = function (notification) {
-        return __awaiter(this, void 0, void 0, function* () {
-            this.useCaseStreamedReferenceNotificationHandlers.forEach((h) => __awaiter(this, void 0, void 0, function* () {
-                yield h(notification);
-            }));
-        });
-    };
-    this.handleActiveNodeChange = function (notification) {
-        return __awaiter(this, void 0, void 0, function* () {
-            this.useCaseActiveNodeChangeNotificationHandlers.forEach((h) => __awaiter(this, void 0, void 0, function* () {
-                yield h(notification);
-            }));
-        });
-    };
-    this.reportError = function (response) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const error = yield response.json();
-            const errorText = `${response.statusText}:${error.message || error.detail}`;
-            yield this.handleError(errorText);
-            return errorText;
-        });
-    };
-    this.reportErrorString = function (error, message) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const errorText = `${error} - ${message}`;
-            yield this.handleError(errorText);
-            return errorText;
-        });
-    };
-}
-IOStackClientConstructor.prototype.startSession = function () {
-    return __awaiter(this, void 0, void 0, function* () {
-        var _a;
-        try {
-            yield this.establishSession();
-            yield this.retrieveAccessToken();
-            if (this.metadata_list.length > 0) {
-                yield this.retrieveUseCaseMetaData();
-            }
-            yield this.sendMessageAndStreamResponse(((_a = this.metadata) === null || _a === void 0 ? void 0 : _a.trigger_phrase) || "-"); // Send blank input to trigger first response
-        }
-        finally {
-            // All errors and exceptions should have been reported via the callback
-        }
-    });
-};
-IOStackClientConstructor.prototype.sendMessageAndStreamResponse = function (message) {
-    return __awaiter(this, void 0, void 0, function* () {
+    }
+    async sendMessage(message) {
         if (!message) {
             return;
         }
         if (!this.session_id) {
-            throw new Error(yield this.reportErrorString("Error sending message", "Session has not yet been established"));
+            this.reportErrorString('Error sending message', 'Session has not yet been established');
+            return;
         }
-        const headers = yield this.getHeaders();
-        const postBody = Object.assign({ message: message }, this.stream_post_data_addenda);
-        const abortHandler = new IOStackAbortHandler(60 * 1000);
+        const headers = await this.getHeaders();
+        const postBody = {
+            message,
+            emit_llm_data: true
+        };
+        const abortHandler = new IOStackAbortHandler(this.response_timeout * 1000);
         this.runningBuffer = "";
+        const url = `${this.platform_root}/v2/use_case/session/${this.session_id}/stream`;
         try {
-            const response = yield fetch(this.platform_root + `/v1/use_case/session/${this.session_id}/stream`, {
+            const response = await fetch(url, {
                 method: 'POST',
-                headers: headers,
+                headers,
                 body: JSON.stringify(postBody),
-                signal: abortHandler.getSignal()
+                signal: abortHandler.getSignal(),
             });
             if (!response.ok || !response.body) {
-                yield this.reportError(response);
-                return;
+                const error = await this.reportError(response);
+                throw new Error(error);
             }
             const reader = response.body.getReader();
-            const lambda = (message) => __awaiter(this, void 0, void 0, function* () {
+            const lambda = async (message) => {
                 const streamedResponsesString = this.decoder.decode(message.value, { stream: true });
                 try {
-                    yield this.processMessage(streamedResponsesString);
+                    await this.processSSEMessage(streamedResponsesString);
                 }
                 catch (e) {
-                    this.reportErrorString(`Encountered error ${e} while processing ${message}`);
+                    this.reportErrorString('Error while decoding streaming response', e.toString());
                     throw e;
                 }
                 if (message.done) {
                     return;
                 }
-                return reader.read().then(lambda);
-            });
-            return yield reader.read().then(lambda);
+                await reader.read().then(lambda);
+            };
+            return await reader.read().then(lambda);
         }
         catch (e) {
-            throw new Error(yield this.reportErrorString('Error while initiating streaming response', e.message || e.detail));
+            this.reportErrorString('Error while streaming response', e.toString());
+            throw e;
         }
         finally {
             abortHandler.reset();
         }
-    });
-};
+    }
+    getTriggerPrompt() {
+        if (!this.metadata.trigger_phrase) {
+            this.reportErrorString("Can't retrieve trigger prompt", 'Metadata not retrieved');
+            return '';
+        }
+        return this.metadata.trigger_phrase;
+    }
+    async getHeaders() {
+        if (this.refreshTokenExpired()) {
+            await this.refreshRefreshToken();
+        }
+        if (this.accessTokenExpired()) {
+            await this.refreshAccessToken();
+        }
+        const headers = new Headers();
+        headers.append('Content-Type', 'application/json');
+        headers.set('Authorization', `Bearer ${this.getAccessToken()}`);
+        return headers;
+    }
+    async processSSEMessage(streamedResponsesString) {
+        this.runningBuffer += streamedResponsesString;
+        let parts = this.runningBuffer.split("\n\n");
+        this.runningBuffer = parts.pop() || ""; // incomplete
+        for (const part of parts) {
+            if (part.startsWith("data:")) {
+                const remainder = part.replace(/^data:\s*/, "");
+                // console.log(`Processing ${remainder}`)
+                await this.handleStreamingResponse((remainder));
+            }
+        }
+    }
+    async handleStreamingResponse(streamedResponseString) {
+        if (!streamedResponseString)
+            return;
+        const streamedResponse = JSON.parse(streamedResponseString);
+        switch (streamedResponse.type) {
+            case 'fragment':
+                await this.onStreamedFragment(streamedResponse);
+                break;
+            case 'error': {
+                if (streamedResponse.message) {
+                    await this.onError(streamedResponse.message);
+                    throw new Error(streamedResponse.message);
+                }
+                else {
+                    await this.onError(streamedResponse.error);
+                    throw new Error(streamedResponse.error);
+                }
+            }
+            case 'use_case_notification':
+                await this.handleUseCaseNotification(streamedResponse);
+                break;
+            case 'streamed_ref':
+                await this.onStreamedReference(streamedResponse);
+                break;
+            default:
+                break;
+        }
+    }
+    async handleUseCaseNotification(result) {
+        switch (result.name) {
+            case 'graph_active_node_change':
+                await this.onActiveNodeChange(result);
+                break;
+            default:
+                await this.onUseCaseNotification(result);
+        }
+    }
+    async establishSession() {
+        console.log('Establishing session');
+        const headers = new Headers();
+        headers.append('Content-Type', 'application/json');
+        headers.set('Authorization', `Bearer ${this.getAccessKey()}`);
+        const postBody = {
+            use_case_id: this.getAccessKey(),
+            client_data: this.use_case_data,
+            user_id: this.user_id || '',
+        };
+        const url = `${this.platform_root}/v2/use_case/session`;
+        const abortHandler = new IOStackAbortHandler(30 * 1000);
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(postBody),
+                signal: abortHandler.getSignal(),
+            });
+            if (!response.ok) {
+                const error = await this.reportError(response);
+                throw new Error(error);
+            }
+            const body = await response.json();
+            this.updateRefreshToken(body.refresh_token);
+            if (body.access_token) {
+                // console.log("Found access token in session init response")
+                this.setAccessToken(body.access_token);
+                this.calcAndSaveAccessTokenRefreshTime(body.access_token);
+            }
+            if (body.trigger_phrase) {
+                // console.log("Found trigger phrase in session init response")
+                this.metadata = {
+                    trigger_phrase: body.trigger_phrase
+                };
+            }
+            this.session_id = body.session_id;
+        }
+        catch (e) {
+            this.reportErrorString('Error while establishing response', e.toString());
+            throw e;
+        }
+        finally {
+            abortHandler.reset();
+        }
+    }
+    async retrieveAccessToken() {
+        if (!this.session_id) {
+            this.reportErrorString('Error retrieving access token', 'Session has not yet been established');
+            return;
+        }
+        if (this.accessTokenRetrieved() || !this.accessTokenExpired()) {
+            return;
+        }
+        console.log(`Retrieving access token for session ${this.session_id}`);
+        const headers = new Headers();
+        headers.append('Content-Type', 'application/json');
+        headers.set('Authorization', `Bearer ${this.getRefreshToken()}`);
+        const abortHandler = new IOStackAbortHandler(30 * 1000);
+        try {
+            const response = await fetch(`${this.platform_root}/v2/use_case/session/${this.session_id}/access_token`, {
+                method: 'POST',
+                headers,
+                body: '{}',
+                signal: abortHandler.getSignal(),
+            });
+            if (!response.ok) {
+                const error = await this.reportError(response);
+                throw new Error(error);
+            }
+            const body = await response.json();
+            this.setAccessToken(body.access_token);
+            this.calcAndSaveAccessTokenRefreshTime(body.access_token);
+        }
+        catch (e) {
+            this.reportErrorString('Error while retrieving access token', e.toString());
+            throw e;
+        }
+        finally {
+            abortHandler.reset();
+        }
+    }
+    async refreshAccessToken() {
+        console.log(`Refreshing access token for session ${this.session_id}`);
+        if (!this.session_id) {
+            this.reportErrorString('Error refreshing access token', 'Session has not yet been established');
+            return;
+        }
+        const headers = new Headers();
+        headers.append('Content-Type', 'application/json');
+        headers.set('Authorization', `Bearer ${this.getRefreshToken()}`);
+        const abortHandler = new IOStackAbortHandler(30 * 1000);
+        try {
+            const response = await fetch(`${this.platform_root}/v2/use_case/session/${this.session_id}/access_token`, {
+                method: 'POST',
+                headers,
+                body: '{}',
+                signal: abortHandler.getSignal(),
+            });
+            if (!response.ok) {
+                const error = await this.reportError(response);
+                throw new Error(error);
+            }
+            const body = await response.json();
+            this.setAccessToken(body.access_token);
+            this.calcAndSaveAccessTokenRefreshTime(body.access_token);
+        }
+        catch (e) {
+            this.reportErrorString('Error while refreshing access token', e.toString());
+            throw e;
+        }
+        finally {
+            abortHandler.reset();
+        }
+    }
+    async refreshRefreshToken() {
+        console.log(`Refreshing refresh token for session ${this.session_id}`);
+        if (!this.session_id) {
+            this.reportErrorString('Error refreshing refresh token', 'Session has not yet been established');
+            return;
+        }
+        const headers = new Headers();
+        headers.append('Content-Type', 'application/json');
+        headers.set('Authorization', `Bearer ${this.getAccessKey()}`);
+        const postBody = {
+            use_case_id: this.getAccessKey(),
+            user_id: this.user_id || '',
+            client_data: this.use_case_data,
+        };
+        const url = `${this.platform_root}/v2/use_case/session/${this.session_id}/refresh_token`;
+        const abortHandler = new IOStackAbortHandler(30 * 1000);
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(postBody),
+                signal: abortHandler.getSignal(),
+            });
+            if (!response.ok) {
+                const error = await this.reportError(response);
+                throw new Error(error);
+            }
+            const body = await response.json();
+            this.setRefreshToken(body.refresh_token);
+        }
+        catch (e) {
+            this.reportErrorString('Error while refreshing session refresh token', e.toString());
+            throw e;
+        }
+        finally {
+            abortHandler.reset();
+        }
+    }
+    async retrieveUseCaseMetaData() {
+        console.log('Fetching use case metadata');
+        const headers = await this.getHeaders();
+        const abortHandler = new IOStackAbortHandler(30 * 1000);
+        let url = `${this.platform_root}/v2/use_case/meta?details=trigger_phrase`;
+        try {
+            const response = await fetch(url, {
+                method: 'GET',
+                headers,
+                signal: abortHandler.getSignal(),
+            });
+            if (!response.ok) {
+                const error = await this.reportError(response);
+                throw new Error(error);
+            }
+            const body = await response.json();
+            this.metadata = body.use_case;
+        }
+        catch (e) {
+            this.reportErrorString('Error while retrieving use case metadata', e.toString());
+            throw e;
+        }
+        finally {
+            abortHandler.reset();
+        }
+    }
+    calcAndSaveAccessTokenRefreshTime(access_token) {
+        const decoded = (0,external_commonjs_jwt_decode_commonjs2_jwt_decode_amd_jwt_decode_root_jwt_decode_.jwtDecode)(access_token);
+        if (!decoded.exp) {
+            throw new Error('Access Token JWT missing exp claim');
+        }
+        const expiryTime = new Date(decoded.exp * 1000);
+        const now = Date.now();
+        const refresh_access_token_period = Math.floor((expiryTime.getTime() - now) * 0.7);
+        const refreshTime = new Date(now + refresh_access_token_period);
+        this.setAccessTokenRefreshTime(refreshTime);
+    }
+    calcAndSaveRefreshTokenRefreshTime(refresh_token) {
+        const decoded = (0,external_commonjs_jwt_decode_commonjs2_jwt_decode_amd_jwt_decode_root_jwt_decode_.jwtDecode)(refresh_token);
+        if (!decoded.exp) {
+            throw new Error('Refresh Token JWT missing exp claim');
+        }
+        const expiryTime = new Date(decoded.exp * 1000);
+        const now = Date.now();
+        const refresh_refresh_token_period = Math.floor((expiryTime.getTime() - now) * 0.7);
+        const refreshTime = new Date(now + refresh_refresh_token_period);
+        this.setRefreshTokenRefreshTime(refreshTime);
+    }
+    addStreamFragmentHandler(i) {
+        this.streamFragmentHandlers.push(i);
+    }
+    async onStreamedFragment(fragment) {
+        this.streamFragmentHandlers.forEach(async (h) => {
+            await h(fragment);
+        });
+    }
+    addErrorHandler(i) {
+        this.errorHandlers.push(i);
+    }
+    async onError(error) {
+        this.errorHandlers.forEach(async (h) => {
+            await h(error);
+        });
+    }
+    addUseCaseNotificationHandler(i) {
+        this.useCaseNotificationHandlers.push(i);
+    }
+    async onUseCaseNotification(notification) {
+        this.useCaseNotificationHandlers.forEach(async (h) => {
+            await h(notification);
+        });
+    }
+    addStreamedReferenceHandler(i) {
+        this.useCaseStreamedReferenceNotificationHandlers.push(i);
+    }
+    async onStreamedReference(notification) {
+        this.useCaseStreamedReferenceNotificationHandlers.forEach(async (h) => {
+            await h(notification);
+        });
+    }
+    addActiveNodeChangeHandler(i) {
+        this.useCaseActiveNodeChangeNotificationHandlers.push(i);
+    }
+    async onActiveNodeChange(notification) {
+        this.useCaseActiveNodeChangeNotificationHandlers.forEach(async (h) => {
+            await h(notification);
+        });
+    }
+    async reportError(response) {
+        const error = await response.json();
+        const errorText = `${response.statusText}:${error.message || error.detail}`;
+        await this.onError(errorText);
+        return errorText;
+    }
+    async reportErrorString(error, message) {
+        await this.onError(`${error} - ${message}`);
+        // throw new Error(`${error} - ${message}`);
+    }
+    setRefreshToken(i) {
+        this.#closure.refresh_token = i;
+    }
+    getRefreshToken() {
+        return this.#closure.refresh_token;
+    }
+    setAccessToken(i) {
+        this.#closure.access_token = i;
+    }
+    getAccessToken() {
+        return this.#closure.access_token;
+    }
+    getAccessKey() {
+        return this.#closure.access_key;
+    }
+    setAccessTokenRefreshTime(i) {
+        this.#closure.access_token_refresh_time = i;
+    }
+    accessTokenRetrieved() {
+        return !!this.#closure.access_token_refresh_time;
+    }
+    accessTokenExpired() {
+        return !!this.#closure.access_token_refresh_time && new Date(Date.now()) >= this.#closure.access_token_refresh_time;
+    }
+    setRefreshTokenRefreshTime(i) {
+        this.#closure.refresh_token_refresh_time = i;
+    }
+    refreshTokenExpired() {
+        return (!!this.#closure.refresh_token_refresh_time && new Date(Date.now()) >= this.#closure.refresh_token_refresh_time);
+    }
+    updateRefreshToken(i) {
+        this.setRefreshToken(i);
+        this.calcAndSaveRefreshTokenRefreshTime(i);
+    }
+}
 
 /******/ 	return __webpack_exports__;
 /******/ })()
