@@ -1,13 +1,14 @@
 {
   "compilerOptions": {
-    "target": "ES6",
-    "module": "ES6",
+    "target": "ES2022",
+    "module": "ESNext",
+    "useDefineForClassFields": true,
     "outDir": "./dist",
     "declaration": true,
     "rootDir": "./src",
     "strict": true,
-    "esModuleInterop": true,
-    "moduleResolution": "Node"
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules"]
