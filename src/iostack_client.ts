@@ -114,7 +114,7 @@ export class IOStackClient {
     this.metadata = {};
     if (sessionId) {
       this.session_id = sessionId;
-      await this.retrieveAccessToken();
+      // await this.retrieveAccessToken();
       await this.retrieveUseCaseMetaData();
     } else {
       await this.establishSession();
@@ -451,7 +451,8 @@ export class IOStackClient {
       }
 
       const body = await response.json();
-      this.setRefreshToken(body.refresh_token);
+      this.updateRefreshToken(body.refresh_token);
+
     } catch (e: any) {
       this.reportErrorString('Error while refreshing session refresh token', e.toString());
       throw e;
