@@ -4,21 +4,39 @@
   "description": "A Javascript client wrapping interactions with the iostack inference service",
   "types": "dist/index.d.ts",
   "main": "dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
   "scripts": {
-    "build": "webpack",
+    "build": "npm run build:types && webpack",
+    "build:types": "tsc -p tsconfig.types.json",
     "prepare": "npm run build",
     "test": "npx jest"
   },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/iostack-ai/js-client.git"
+    "url": "git+https://github.com/iostack-org/js-client.git"
   },
   "author": "iostack.ai",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/iostack-ai/js-client/issues"
+    "url": "https://github.com/iostack-org/js-client/issues"
   },
-  "homepage": "https://github.com/iostack-ai/js-client#readme",
+  "homepage": "https://github.com/iostack-org/js-client#readme",
   "devDependencies": {
     "@babel/cli": "^7.24.8",
     "@babel/core": "^7.25.2",
@@ -44,5 +62,8 @@
   },
   "dependencies": {
     "jwt-decode": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }
