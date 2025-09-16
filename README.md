@@ -17,11 +17,10 @@ yarn add @iostack/js-client
 ### Use
 ```javascript
 
-    // CJS
-    // const client = require('@iostack/js-client');
-    
-    // ESM / TS
-    import IOStackClient from '@iostack/js-client';
+    import {
+        IOStackClient,
+        StreamFragmentPacket,
+    } from "@iostack/js-client";
 
     const client = new IOStackClient({
         platform_root: "https://platform.iostack.ai",
