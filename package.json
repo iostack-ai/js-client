@@ -1,6 +1,6 @@
 {
   "name": "@iostack/js-client",
-  "version": "0.0.40",
+  "version": "0.0.41",
   "description": "A Javascript client wrapping interactions with the iostack inference service",
   "types": "dist/index.d.ts",
   "main": "dist/index.js",
@@ -13,6 +13,9 @@
   },
   "files": [
     "dist/**/*",
+    "!dist/**/__tests__/**",
+    "!dist/**/*.test.*",
+    "!dist/**/*.spec.*",
     "README.md",
     "LICENSE"
   ],
