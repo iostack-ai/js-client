@@ -6,7 +6,12 @@ Typescript/Javascript Client for interacting with iostack inference service
 
 ### Install package
 ```
-npm add @iostack/js-client
+npm i @iostack/js-client
+# or
+pnpm add @iostack/js-client
+# or
+yarn add @iostack/js-client
+
 ```
 
 ### Use
