@@ -1,13 +1,16 @@
 # .github/workflows/publish.yml
 name: publish
+
 on:
   push:
     tags: ['v*.*.*']
+
+permissions:
+  id-token: write  # Required for OIDC
+  contents: read
+
 jobs:
   npm:
-    permissions:
-      contents: read
-      id-token: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,6 +20,7 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           scope: '@iostack'
           provenance: true
+      - run: npm install -g npm@latest
       - run: npm ci
       - run: npm test
       - run: npm publish --access public
